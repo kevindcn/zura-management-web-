@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    color: #172B4D;
+    background-color: #F7F8F9;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+/* Custom crisp scrollbars matching Jira */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #DCDFE4;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B3B9C4;
+}
+
+/* Jira Lozenge badge utility */
+.jira-lozenge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+}
+
+.jira-lozenge-todo {
+  background-color: #DFE1E6;
+  color: #42526E;
+}
+
+.jira-lozenge-inprogress {
+  background-color: #DEEBFF;
+  color: #0747A6;
+}
+
+.jira-lozenge-done {
+  background-color: #E3FCEF;
+  color: #006644;
+}
