@@ -8,7 +8,13 @@ build/
 storage/
 .DS_Store
 
+# Documentation & Prompt Markdown Files
 /01-JIRA-CLONE-BLUEPRINT.md
 /03-PROMPT-ANTIGRAVITY-JIRALITE.md
+/06-Roadmap-Pengembangan-dan-Best-Practice-JiraLite.md
+/07-Pengembangan-Fitur-Tambahan-Burndown-Velocity-Sprint-Report.md
+/README.md
+docs/
+
 backend/uploads/*
 !backend/uploads/.gitkeep
