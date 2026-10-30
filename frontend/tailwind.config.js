@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
@@ -28,6 +29,18 @@ export default {
           medium: "#FFAB00",
           low: "#36B37E",
           lowest: "#0065FF",
+          // Jira Dark Theme Tokens
+          "dark-bg": "#1D2125",
+          "dark-surface": "#22272B",
+          "dark-card": "#282E33",
+          "dark-card-hover": "#2C333A",
+          "dark-column": "#161A1D",
+          "dark-column-hover": "#1D2125",
+          "dark-border": "#333C44",
+          "dark-border-subtle": "#22272B",
+          "dark-text": "#DEE4EA",
+          "dark-subtle": "#9FADBC",
+          "dark-hover": "#2C333A",
         },
       },
       fontFamily: {
@@ -38,6 +51,8 @@ export default {
         "card-hover": "0 4px 8px -2px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31)",
         "jira-dropdown": "0 4px 8px -2px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31)",
         "jira-modal": "0 8px 16px -4px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31)",
+        "dark-card": "0 1px 2px rgba(0, 0, 0, 0.4), 0 0 1px rgba(0, 0, 0, 0.5)",
+        "dark-modal": "0 8px 24px -4px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1)",
       },
     },
   },

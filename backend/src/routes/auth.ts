@@ -1,16 +1,17 @@
 import { Router, Response } from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
+import { generateToken } from "../lib/jwt.js";
+import { authRateLimiter } from "../middleware/rateLimiter.js";
 
 const router = Router();
 
 const registerSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters").max(100),
+  password: z.string().min(6, "Password must be at least 6 characters").max(100),
 });
 
 const loginSchema = z.object({
@@ -18,15 +19,8 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const generateToken = (user: { id: string; email: string; name: string }) => {
-  const secret = process.env.JWT_SECRET || "default_fallback_secret_jira";
-  return jwt.sign({ id: user.id, email: user.email, name: user.name }, secret, {
-    expiresIn: "7d",
-  });
-};
-
 // POST /api/auth/register
-router.post("/register", async (req, res, next) => {
+router.post("/register", authRateLimiter, async (req, res, next) => {
   try {
     const { email, name, password } = registerSchema.parse(req.body);
 
@@ -64,7 +58,7 @@ router.post("/register", async (req, res, next) => {
 });
 
 // POST /api/auth/login
-router.post("/login", async (req, res, next) => {
+router.post("/login", authRateLimiter, async (req, res, next) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
@@ -124,9 +118,14 @@ router.get("/me", authenticateToken, async (req: AuthRequest, res: Response, nex
   }
 });
 
-// POST /api/auth/demo-login
-router.post("/demo-login", async (req, res, next) => {
+// POST /api/auth/demo-login - Only available in non-production AND when DEMO_MODE=true
+router.post("/demo-login", authRateLimiter, async (req, res, next) => {
   try {
+    if (process.env.NODE_ENV === "production" || process.env.DEMO_MODE !== "true") {
+      res.status(404).json({ message: "Demo mode is disabled" });
+      return;
+    }
+
     let demoUser = await prisma.user.findUnique({
       where: { email: "alex.lead@jira-lite.local" },
     });

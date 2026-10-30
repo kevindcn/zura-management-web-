@@ -22,6 +22,10 @@ model User {
   reportedIssues  Issue[]         @relation("Reporter")
   comments        Comment[]
   activities      Activity[]
+  notificationsReceived   Notification[]  @relation("UserNotifications")
+  notificationsTriggered  Notification[]  @relation("NotificationActor")
+  savedViews              SavedView[]
+  watchedIssues           IssueWatcher[]
 }
 
 model Project {
@@ -41,6 +45,8 @@ model Project {
   issues       Issue[]
   sprints      Sprint[]
   labels       Label[]
+  notifications Notification[]
+  savedViews   SavedView[]
 }
 
 model ProjectMember {
@@ -80,6 +86,7 @@ model Issue {
   description String?
   priority    String      @default("MEDIUM") // LOWEST, LOW, MEDIUM, HIGH, HIGHEST
   storyPoints Int?
+  startDate   DateTime?
   dueDate     DateTime?
   position    Float       @default(65535)
 
@@ -105,6 +112,9 @@ model Issue {
   labels      Label[]     @relation("IssueLabels")
   comments    Comment[]
   activities  Activity[]
+  watchers    IssueWatcher[]
+  issueEvents   IssueEvent[]
+  sprintResults SprintIssueResult[]
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -124,8 +134,55 @@ model Sprint {
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   issues    Issue[]
 
+  startedAt       DateTime?
+  closedAt        DateTime?
+  committedPoints Int?      @default(0)
+  committedIssues Int?      @default(0)
+  completedPoints Int?      @default(0)
+  completedIssues Int?      @default(0)
+  retroNotes      Json?
+
+  issueEvents         IssueEvent[]
+  issueResults        SprintIssueResult[]
+  targetIssueResults  SprintIssueResult[] @relation("TargetSprintResult")
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+model IssueEvent {
+  id               String   @id @default(cuid())
+  issueId          String
+  issue            Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  sprintId         String?
+  sprint           Sprint?  @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  eventType        String   // ADDED_TO_SPRINT, REMOVED_FROM_SPRINT, POINTS_CHANGED, STATUS_CHANGED
+  points           Int?
+  previousPoints   Int?
+  category         String?  // TO_DO, IN_PROGRESS, DONE
+  previousCategory String?
+  createdAt        DateTime @default(now())
+
+  @@index([issueId, createdAt])
+  @@index([sprintId, createdAt])
+}
+
+model SprintIssueResult {
+  id             String   @id @default(cuid())
+  sprintId       String
+  sprint         Sprint   @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  issueId        String
+  issue          Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  pointsAtClose  Int?     @default(0)
+  outcome        String   // COMPLETED, CARRIED_OVER, RETURNED_TO_BACKLOG
+  targetSprintId String?
+  targetSprint   Sprint?  @relation("TargetSprintResult", fields: [targetSprintId], references: [id], onDelete: SetNull)
+  addedMidSprint Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@unique([sprintId, issueId])
+  @@index([sprintId])
+  @@index([issueId])
 }
 
 model Label {
@@ -165,4 +222,58 @@ model Activity {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actorId   String
+  actor     User     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  type      String   // ASSIGNED, COMMENT, STATUS_CHANGED, SPRINT
+  title     String?
+  message   String
+  issueKey  String?
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+}
+
+model SavedView {
+  id        String   @id @default(cuid())
+  name      String
+  query     String?
+  type      String?
+  priority  String?
+  statusId  String?
+  assignee  String?
+  isShared  Boolean  @default(false)
+
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, userId])
+}
+
+model IssueWatcher {
+  id        String   @id @default(cuid())
+  issueId   String
+  userId    String
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([issueId, userId])
+  @@index([issueId])
+  @@index([userId])
 }

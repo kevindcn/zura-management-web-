@@ -1,0 +1,40 @@
+<svg width="410" height="414" viewBox="0 0 410 414" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="zura_bg_grad" x1="40" y1="30" x2="370" y2="384" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0065FF" />
+      <stop offset="50%" stop-color="#0C66E4" />
+      <stop offset="100%" stop-color="#0052CC" />
+    </linearGradient>
+    <filter id="zura_subtle_glow" x="70" y="70" width="270" height="274" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#002B7A" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Blue Rounded Square Icon Background -->
+  <rect x="15" y="17" width="380" height="380" rx="84" fill="url(#zura_bg_grad)" />
+
+  <!-- Subtle Rim Light for Depth & Polish -->
+  <rect x="15" y="17" width="380" height="380" rx="84" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="3" fill="none" />
+
+  <!-- Iconic Bold White Z (Matching User Reference) -->
+  <path
+    d="M 108 110 
+       H 302 
+       V 148 
+       L 172 266 
+       H 302 
+       V 304 
+       H 108 
+       V 266 
+       L 238 148 
+       H 108 
+       Z"
+    fill="#FFFFFF"
+    stroke="#FFFFFF"
+    stroke-width="12"
+    stroke-linejoin="round"
+    stroke-linecap="round"
+    filter="url(#zura_subtle_glow)"
+  />
+</svg>
+

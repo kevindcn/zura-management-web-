@@ -3,7 +3,7 @@ import React from "react";
 export const Skeleton: React.FC<{ className?: string }> = ({ className = "" }) => {
   return (
     <div
-      className={`animate-pulse bg-slate-200/80 rounded ${className}`}
+      className={`animate-pulse bg-slate-200/80 dark:bg-jira-dark-card rounded ${className}`}
       aria-hidden="true"
     />
   );
@@ -15,7 +15,7 @@ export const BoardSkeleton: React.FC = () => {
       {[1, 2, 3, 4].map((col) => (
         <div
           key={col}
-          className="w-72 flex-shrink-0 bg-jira-column rounded-md p-3 flex flex-col space-y-3"
+          className="w-72 flex-shrink-0 bg-jira-column dark:bg-jira-dark-column rounded-md p-3 flex flex-col space-y-3"
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
@@ -27,7 +27,7 @@ export const BoardSkeleton: React.FC = () => {
           {[1, 2, 3].map((card) => (
             <div
               key={card}
-              className="bg-white rounded-md p-3.5 border border-jira-border shadow-card space-y-2.5"
+              className="bg-white dark:bg-jira-dark-card rounded-md p-3.5 border border-jira-border dark:border-jira-dark-border shadow-card space-y-2.5"
             >
               <Skeleton className="h-4 w-3/4" />
               <div className="flex items-center justify-between pt-2">

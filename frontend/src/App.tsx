@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "./store/auth";
 import { useToastStore } from "./store/toast";
+import { useProjectStore } from "./store/project";
+import { can, getUserRole } from "./lib/permissions";
 import { api } from "./lib/api";
-import { Project, Issue } from "./types";
+import { Project, Issue, Status } from "./types";
 import { AuthPage } from "./pages/AuthPage";
 import { BoardPage } from "./pages/BoardPage";
+import { ListPage } from "./pages/ListPage";
+import { BacklogPage } from "./pages/BacklogPage";
+import { SummaryPage } from "./pages/SummaryPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
+import { ProjectSettingsPage } from "./pages/ProjectSettingsPage";
+import { ReportsPage } from "./pages/ReportsPage";
 import { Navbar } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import { CreateProjectModal } from "./components/CreateProjectModal";
@@ -24,7 +31,8 @@ export function App() {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loadingProject, setLoadingProject] = useState(false);
-  const [activeView, setActiveView] = useState<"board" | "projects" | "backlog" | "settings">("board");
+  const [activeView, setActiveView] = useState<"summary" | "board" | "list" | "projects" | "backlog" | "reports" | "settings">("board");
+  const [targetSprintReportId, setTargetSprintReportId] = useState<string | null>(null);
 
   // Deep linked or notification selected issue key
   const [selectedIssueKeyForDetail, setSelectedIssueKeyForDetail] = useState<string | null>(null);
@@ -43,7 +51,7 @@ export function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       logout();
-      toast.error("Sesi Anda telah berakhir. Silakan masuk kembali.");
+      toast.error("Your session has expired. Please log in again.");
     };
 
     window.addEventListener("jira_session_expired", handleSessionExpired);
@@ -65,19 +73,29 @@ export function App() {
         }
       } else {
         setCurrentProject(null);
+        useProjectStore.getState().setCurrentProject(null);
         setIssues([]);
       }
     } catch (err) {
       console.error("Failed to load projects:", err);
-      toast.error("Gagal memuat daftar project.");
+      toast.error("Failed to load projects list.");
     }
   };
 
   const loadProjectDetail = async (key: string) => {
     try {
       setLoadingProject(true);
+
+      // Clear search query params when switching projects to avoid stale cross-project filters
+      const url = new URL(window.location.href);
+      if (url.search) {
+        url.search = "";
+        window.history.replaceState({}, "", url.toString());
+      }
+
       const res = await api.projects.get(key);
       setCurrentProject(res.project);
+      useProjectStore.getState().setCurrentProject(res.project);
 
       // Fetch issues for this project
       const issuesRes = await api.issues.list(key);
@@ -85,11 +103,70 @@ export function App() {
       setActiveView("board");
     } catch (err) {
       console.error("Failed to load project details:", err);
-      toast.error(`Gagal memuat detail project ${key}.`);
+      toast.error(`Failed to load project details for ${key}.`);
     } finally {
       setLoadingProject(false);
     }
   };
+
+  const refreshIssues = async () => {
+    if (!currentProject) return;
+    try {
+      const issuesRes = await api.issues.list(currentProject.key);
+      setIssues(issuesRes.issues);
+    } catch (err) {
+      console.error("Failed to refresh issues:", err);
+    }
+  };
+
+  // Realtime board sync: periodically poll issues to reflect changes from teammates
+  useEffect(() => {
+    if (!isAuthenticated || !currentProject) return;
+
+    let isSubscribed = true;
+
+    const interval = setInterval(async () => {
+      try {
+        const issuesRes = await api.issues.list(currentProject.key);
+        if (!isSubscribed) return;
+
+        setIssues((prev) => {
+          const prevSig = prev
+            .map(
+              (i) =>
+                `${i.id}_${i.statusId}_${i.position}_${i.updatedAt}_${
+                  i._count?.comments || 0
+                }_${i.startDate || ""}_${i.dueDate || ""}_${i.priority}_${
+                  i.assigneeId || ""
+                }`
+            )
+            .join("|");
+          const nextSig = issuesRes.issues
+            .map(
+              (i) =>
+                `${i.id}_${i.statusId}_${i.position}_${i.updatedAt}_${
+                  i._count?.comments || 0
+                }_${i.startDate || ""}_${i.dueDate || ""}_${i.priority}_${
+                  i.assigneeId || ""
+                }`
+            )
+            .join("|");
+
+          if (prevSig !== nextSig) {
+            return issuesRes.issues;
+          }
+          return prev;
+        });
+      } catch (err) {
+        // Silently ignore background board polling error
+      }
+    }, 3500);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [isAuthenticated, currentProject]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -97,19 +174,24 @@ export function App() {
     }
   }, [isAuthenticated]);
 
+  const { user } = useAuthStore();
+
   // Global Keyboard Shortcuts (C for Create, / for Search)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const activeElement = document.activeElement;
+      const activeElement = document.activeElement as HTMLElement | null;
       const isInput =
         activeElement instanceof HTMLInputElement ||
         activeElement instanceof HTMLTextAreaElement ||
-        activeElement instanceof HTMLSelectElement;
+        activeElement instanceof HTMLSelectElement ||
+        !!activeElement?.isContentEditable ||
+        !!activeElement?.closest("[contenteditable='true']");
 
       if (!isInput) {
         if (e.key === "c" || e.key === "C") {
           e.preventDefault();
-          if (currentProject) {
+          const userRole = getUserRole(currentProject, user?.id);
+          if (currentProject && can(userRole, "issue:create")) {
             setIsCreateIssueOpen(true);
           }
         }
@@ -118,7 +200,7 @@ export function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentProject]);
+  }, [currentProject, user]);
 
   // Handle Drag & Drop move
   const handleMoveIssue = async (
@@ -160,7 +242,7 @@ export function App() {
       setIssues((prev) => [...prev, res.issue]);
       toast.success(t.toast.createdSuccess(res.issue.key));
     } catch (err: any) {
-      toast.error(err.message || "Gagal membuat item.");
+      toast.error(err.message || "Failed to create work item.");
     }
   };
 
@@ -172,20 +254,66 @@ export function App() {
       setIssues((prev) => [...prev, res.issue]);
       toast.success(t.toast.createdSuccess(res.issue.key));
     } catch (err: any) {
-      toast.error(err.message || "Gagal membuat item.");
+      toast.error(err.message || "Failed to create work item.");
       throw err;
     }
   };
 
   // Issue update
-  const handleIssueUpdated = (updated: Issue) => {
-    setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-  };
+  const handleIssueUpdated = useCallback((updated: Issue) => {
+    setIssues((prev) => prev.map((i) => (i.id === updated.id ? { ...i, ...updated } : i)));
+  }, []);
 
   // Issue delete
-  const handleIssueDeleted = (key: string) => {
+  const handleIssueDeleted = useCallback((key: string) => {
     setIssues((prev) => prev.filter((i) => i.key !== key));
     toast.success(t.toast.deletedSuccess(key));
+  }, [toast]);
+
+  // Status added
+  const handleStatusAdded = (newStatus: Status) => {
+    if (!currentProject) return;
+    const updatedStatuses = [...currentProject.statuses, newStatus].sort(
+      (a, b) => a.position - b.position
+    );
+    const updatedProject = {
+      ...currentProject,
+      statuses: updatedStatuses,
+    };
+    setCurrentProject(updatedProject);
+    useProjectStore.getState().setCurrentProject(updatedProject);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+    );
+  };
+
+  // Status deleted
+  const handleStatusDeleted = (statusId: string) => {
+    if (!currentProject) return;
+    const updatedStatuses = currentProject.statuses.filter((s) => s.id !== statusId);
+    const updatedProject = {
+      ...currentProject,
+      statuses: updatedStatuses,
+    };
+    setCurrentProject(updatedProject);
+    useProjectStore.getState().setCurrentProject(updatedProject);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+    );
+  };
+
+  // Statuses reordered
+  const handleStatusesReordered = (newStatuses: Status[]) => {
+    if (!currentProject) return;
+    const updatedProject = {
+      ...currentProject,
+      statuses: newStatuses,
+    };
+    setCurrentProject(updatedProject);
+    useProjectStore.getState().setCurrentProject(updatedProject);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+    );
   };
 
   // Project creation submit
@@ -196,10 +324,10 @@ export function App() {
   }) => {
     try {
       const res = await api.projects.create(data);
-      toast.success(`Project ${res.project.name} berhasil dibuat!`);
+      toast.success(`Project '${res.project.name}' created successfully!`);
       await loadProjects(res.project.key);
     } catch (err: any) {
-      toast.error(err.message || "Gagal membuat project.");
+      toast.error(err.message || "Failed to create project.");
     }
   };
 
@@ -211,11 +339,11 @@ export function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F4F5F7] flex flex-col items-center justify-center gap-3">
+      <div className="min-h-screen bg-[#F4F5F7] dark:bg-jira-dark-bg flex flex-col items-center justify-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-jira-blue flex items-center justify-center text-white shadow-md">
           <Loader2 size={22} className="animate-spin" />
         </div>
-        <p className="text-xs font-semibold text-jira-subtle">{t.common.loading}</p>
+        <p className="text-xs font-semibold text-jira-subtle dark:text-slate-400">{t.common.loading}</p>
       </div>
     );
   }
@@ -230,7 +358,7 @@ export function App() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-white dark:bg-jira-dark-bg text-jira-text dark:text-jira-dark-text">
       {/* Top Navigation */}
       <Navbar
         currentProject={currentProject}
@@ -263,8 +391,20 @@ export function App() {
           ) : currentProject ? (
             loadingProject ? (
               <BoardSkeleton />
+            ) : activeView === "summary" ? (
+              <SummaryPage
+                project={currentProject}
+                issues={issues}
+                onSwitchView={(v) => setActiveView(v)}
+                onSubmitCreateIssue={handleSubmitCreateIssue}
+                onIssueUpdated={handleIssueUpdated}
+                onIssueDeleted={handleIssueDeleted}
+                initialSelectedIssueKey={selectedIssueKeyForDetail}
+                onClearInitialIssueKey={() => setSelectedIssueKeyForDetail(null)}
+              />
             ) : activeView === "board" ? (
               <BoardPage
+                key={currentProject.key}
                 project={currentProject}
                 issues={issues}
                 onMoveIssue={handleMoveIssue}
@@ -276,117 +416,84 @@ export function App() {
                 setIsCreateModalOpen={setIsCreateIssueOpen}
                 initialSelectedIssueKey={selectedIssueKeyForDetail}
                 onClearInitialIssueKey={() => setSelectedIssueKeyForDetail(null)}
+                onSwitchView={(v) => setActiveView(v)}
+              />
+            ) : activeView === "list" ? (
+              <ListPage
+                project={currentProject}
+                issues={issues}
+                onSwitchView={(v) => setActiveView(v)}
+                onSubmitCreateIssue={handleSubmitCreateIssue}
+                onIssueUpdated={handleIssueUpdated}
+                onIssueDeleted={handleIssueDeleted}
+                initialSelectedIssueKey={selectedIssueKeyForDetail}
+                onClearInitialIssueKey={() => setSelectedIssueKeyForDetail(null)}
               />
             ) : activeView === "backlog" ? (
-              <div className="p-8 text-center max-w-lg mx-auto my-auto select-none">
-                <div className="w-14 h-14 rounded-2xl bg-blue-50/80 border border-blue-100 text-jira-blue flex items-center justify-center mx-auto mb-3.5 shadow-sm">
-                  📋
-                </div>
-                <h2 className="text-base font-bold text-jira-text">
-                  Sprint &amp; Backlog
-                </h2>
-                <p className="text-xs text-jira-subtle mt-1.5 leading-relaxed">
-                  Perencanaan sprint dan partisi backlog terintegrasi langsung dengan skema database saat ini.
-                  Papan Kanban aktif Anda dapat digunakan secara real-time.
-                </p>
-                <button
-                  onClick={() => setActiveView("board")}
-                  className="mt-4 px-4 py-2 bg-jira-blue text-white text-xs font-semibold rounded-md hover:bg-jira-blue-hover transition shadow-sm"
-                >
-                  Kembali ke Papan Kanban
-                </button>
-              </div>
+              <BacklogPage
+                project={currentProject}
+                issues={issues}
+                onSwitchView={(v, sprintReportId) => {
+                  setActiveView(v);
+                  if (sprintReportId) setTargetSprintReportId(sprintReportId);
+                }}
+                onSubmitCreateIssue={handleSubmitCreateIssue}
+                onIssueUpdated={handleIssueUpdated}
+                onIssueDeleted={handleIssueDeleted}
+                onRefreshIssues={refreshIssues}
+                initialSelectedIssueKey={selectedIssueKeyForDetail}
+                onClearInitialIssueKey={() => setSelectedIssueKeyForDetail(null)}
+              />
+            ) : activeView === "reports" ? (
+              <ReportsPage
+                project={currentProject}
+                initialSprintId={targetSprintReportId}
+                onOpenIssueDetail={(key) => setSelectedIssueKeyForDetail(key)}
+              />
+            ) : activeView === "settings" ? (
+              <ProjectSettingsPage
+                project={currentProject}
+                onProjectUpdated={(updatedProject) => {
+                  setCurrentProject(updatedProject);
+                  useProjectStore.getState().setCurrentProject(updatedProject);
+                  setProjects((prev) =>
+                    prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+                  );
+                }}
+                onProjectDeleted={(deletedKey) => {
+                  setProjects((prev) => prev.filter((p) => p.key !== deletedKey));
+                  setCurrentProject(null);
+                  useProjectStore.getState().setCurrentProject(null);
+                  setActiveView("projects");
+                }}
+                onSwitchView={(v) => setActiveView(v)}
+              />
             ) : (
-              <div className="p-8 max-w-2xl mx-auto w-full overflow-y-auto">
-                <h2 className="text-lg font-bold text-jira-text mb-4">
-                  {t.sidebar.settings}
-                </h2>
-                <div className="bg-white border border-jira-border rounded-lg p-5 space-y-4 text-xs shadow-card">
-                  <div className="grid grid-cols-2 gap-4 pb-3 border-b border-slate-100">
-                    <div>
-                      <span className="font-bold text-jira-subtle uppercase text-[10px] tracking-wider">
-                        Nama Project
-                      </span>
-                      <p className="text-sm font-bold text-jira-text mt-0.5">
-                        {currentProject.name}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="font-bold text-jira-subtle uppercase text-[10px] tracking-wider">
-                        Key Project
-                      </span>
-                      <p className="font-mono text-sm font-bold text-jira-blue mt-0.5">
-                        {currentProject.key}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="font-bold text-jira-subtle uppercase text-[10px] tracking-wider">
-                      Deskripsi
-                    </span>
-                    <p className="text-xs text-jira-text mt-1 leading-relaxed">
-                      {currentProject.description || "Tidak ada deskripsi"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <span className="font-bold text-jira-subtle uppercase text-[10px] tracking-wider">
-                      Alur Status (Workflow)
-                    </span>
-                    <div className="flex flex-wrap gap-2 mt-1.5">
-                      {currentProject.statuses.map((s) => (
-                        <span
-                          key={s.id}
-                          className="px-2.5 py-1 rounded bg-slate-100 border border-slate-200 font-semibold text-jira-text text-xs"
-                        >
-                          {s.name} ({s.category})
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="font-bold text-jira-subtle uppercase text-[10px] tracking-wider">
-                      Anggota Project ({currentProject.members.length})
-                    </span>
-                    <div className="flex items-center gap-2 mt-2">
-                      {currentProject.members.map((m) => (
-                        <div
-                          key={m.id}
-                          className="flex items-center gap-2 bg-slate-50 border border-jira-border px-2.5 py-1 rounded-md"
-                          title={`${m.user.name} (${m.role})`}
-                        >
-                          <img
-                            src={
-                              m.user.avatarUrl ||
-                              `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-                                m.user.name
-                              )}`
-                            }
-                            alt={m.user.name}
-                            className="w-5 h-5 rounded-full object-cover"
-                          />
-                          <span className="text-xs font-semibold text-jira-text">
-                            {m.user.name}
-                          </span>
-                          <span className="text-[10px] bg-blue-100 text-jira-blue px-1.5 py-0.2 rounded font-bold">
-                            {m.role}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <BoardPage
+                project={currentProject}
+                issues={issues}
+                onMoveIssue={handleMoveIssue}
+                onQuickCreate={handleQuickCreate}
+                onSubmitCreateIssue={handleSubmitCreateIssue}
+                onIssueUpdated={handleIssueUpdated}
+                onIssueDeleted={handleIssueDeleted}
+                onStatusAdded={handleStatusAdded}
+                onStatusDeleted={handleStatusDeleted}
+                onStatusesReordered={handleStatusesReordered}
+                isCreateModalOpen={isCreateIssueOpen}
+                setIsCreateModalOpen={setIsCreateIssueOpen}
+                initialSelectedIssueKey={selectedIssueKeyForDetail}
+                onClearInitialIssueKey={() => setSelectedIssueKeyForDetail(null)}
+                onSwitchView={(v) => setActiveView(v)}
+              />
             )
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-jira-dark-bg">
               <EmptyState
                 icon={FolderKanban}
-                title="Belum Ada Project yang Dipilih"
-                description="Pilih salah satu project Anda dari navbar atau buat project baru untuk mulai mengelola pekerjaan."
-                actionLabel="Buat Project Pertama"
+                title="No Project Selected"
+                description="Select a project from the top navigation or create a new project to start managing work."
+                actionLabel="Create Project"
                 onAction={() => setIsCreateProjectOpen(true)}
               />
             </div>

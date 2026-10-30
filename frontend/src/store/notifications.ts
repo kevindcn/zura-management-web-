@@ -1,83 +1,99 @@
 import { create } from "zustand";
+import { api } from "../lib/api";
 
 export interface NotificationItem {
   id: string;
   actorName: string;
-  actorAvatar?: string;
+  actorAvatar?: string | null;
   message: string;
   issueKey?: string;
+  projectId?: string;
   createdAt: string;
   isRead: boolean;
   type: "ASSIGNED" | "STATUS_CHANGED" | "COMMENT" | "MENTION" | "SPRINT";
+  title?: string;
 }
 
 interface NotificationStore {
   notifications: NotificationItem[];
-  unreadCount: () => number;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  addNotification: (item: Omit<NotificationItem, "id" | "createdAt" | "isRead">) => void;
+  unreadCount: number;
+  isLoading: boolean;
+  fetchNotifications: () => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif_1",
-    actorName: "Sarah Connor",
-    actorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=Sarah%20Connor&backgroundColor=00875a",
-    message: "menugaskan work item JIRA-3 kepada Anda",
-    issueKey: "JIRA-3",
-    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(), // 12 mins ago
-    isRead: false,
-    type: "ASSIGNED",
-  },
-  {
-    id: "notif_2",
-    actorName: "David Chen",
-    actorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=David%20Chen&backgroundColor=6554c0",
-    message: "menambahkan komentar pada JIRA-1: 'PR sudah direview dan siap'",
-    issueKey: "JIRA-1",
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 mins ago
-    isRead: false,
-    type: "COMMENT",
-  },
-  {
-    id: "notif_3",
-    actorName: "Alex Morgan",
-    actorAvatar: "https://api.dicebear.com/7.x/initials/svg?seed=Alex%20Morgan&backgroundColor=0c66e4",
-    message: "mengubah status JIRA-2 menjadi IN PROGRESS",
-    issueKey: "JIRA-2",
-    createdAt: new Date(Date.now() - 1000 * 60 * 180).toISOString(), // 3 hours ago
-    isRead: true,
-    type: "STATUS_CHANGED",
-  },
-];
-
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
-  notifications: INITIAL_NOTIFICATIONS,
-  unreadCount: () => {
-    return get().notifications.filter((n) => !n.isRead).length;
+  notifications: [],
+  unreadCount: 0,
+  isLoading: false,
+
+  fetchNotifications: async () => {
+    try {
+      set({ isLoading: true });
+      const res = await api.notifications.list();
+      set({
+        notifications: res.notifications as NotificationItem[],
+        unreadCount: res.unreadCount,
+        isLoading: false,
+      });
+    } catch (err) {
+      // In case user is not logged in or offline, fail gracefully
+      set({ isLoading: false });
+    }
   },
-  markAsRead: (id: string) => {
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
+
+  markAsRead: async (id: string) => {
+    // Optimistic update
+    const prevNotifs = get().notifications;
+    const target = prevNotifs.find((n) => n.id === id);
+    const wasUnread = target && !target.isRead;
+
+    set({
+      notifications: prevNotifs.map((n) =>
         n.id === id ? { ...n, isRead: true } : n
       ),
-    }));
+      unreadCount: wasUnread ? Math.max(0, get().unreadCount - 1) : get().unreadCount,
+    });
+
+    try {
+      await api.notifications.markAsRead(id);
+    } catch (err) {
+      // Revert if API fails
+      set({ notifications: prevNotifs });
+    }
   },
-  markAllAsRead: () => {
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
-    }));
+
+  markAllAsRead: async () => {
+    // Optimistic update
+    const prevNotifs = get().notifications;
+    set({
+      notifications: prevNotifs.map((n) => ({ ...n, isRead: true })),
+      unreadCount: 0,
+    });
+
+    try {
+      await api.notifications.markAllAsRead();
+    } catch (err) {
+      set({ notifications: prevNotifs });
+    }
   },
-  addNotification: (item) => {
-    const newItem: NotificationItem = {
-      ...item,
-      id: "notif_" + Date.now(),
-      createdAt: new Date().toISOString(),
-      isRead: false,
-    };
-    set((state) => ({
-      notifications: [newItem, ...state.notifications],
-    }));
+
+  deleteNotification: async (id: string) => {
+    const prevNotifs = get().notifications;
+    const target = prevNotifs.find((n) => n.id === id);
+    const wasUnread = target && !target.isRead;
+
+    set({
+      notifications: prevNotifs.filter((n) => n.id !== id),
+      unreadCount: wasUnread ? Math.max(0, get().unreadCount - 1) : get().unreadCount,
+    });
+
+    try {
+      await api.notifications.delete(id);
+    } catch (err) {
+      set({ notifications: prevNotifs });
+    }
   },
 }));

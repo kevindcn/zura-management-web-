@@ -7,8 +7,6 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  console.error("Unhandled Error:", err);
-
   if (err instanceof ZodError) {
     res.status(400).json({
       message: "Validation failed",
@@ -18,6 +16,10 @@ export const errorHandler = (
       })),
     });
     return;
+  }
+
+  if (process.env.NODE_ENV !== "test") {
+    console.error("Unhandled Error:", err);
   }
 
   const statusCode = err.status || err.statusCode || 500;

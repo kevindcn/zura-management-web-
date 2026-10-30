@@ -1,10 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Project, IssueType, PriorityLevel } from "../types";
 import { IssueTypeIcon } from "./IssueTypeIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { getProjectTheme, getProjectInitials } from "../lib/colors";
 import { t } from "../lib/i18n";
 import { X, Loader2 } from "lucide-react";
+import { DatePickerField } from "./DatePickerField";
+import {
+  PrioritySelect,
+  AssigneeSelect,
+  StatusSelect,
+  IssueTypeSelect,
+} from "./CustomSelect";
 
 interface CreateIssueModalProps {
   isOpen: boolean;
@@ -19,7 +26,10 @@ interface CreateIssueModalProps {
     storyPoints?: number;
     statusId?: string;
     assigneeId?: string | null;
+    startDate?: string | null;
+    dueDate?: string | null;
   }) => Promise<void>;
+  initialType?: IssueType;
 }
 
 export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
@@ -28,16 +38,25 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
   project,
   onIssueCreated,
   onSubmitCreate,
+  initialType,
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [type, setType] = useState<IssueType>("TASK");
+  const [type, setType] = useState<IssueType>(initialType || "TASK");
   const [priority, setPriority] = useState<PriorityLevel>("MEDIUM");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialType) setType(initialType);
+    }
+  }, [isOpen, initialType]);
   const [storyPoints, setStoryPoints] = useState<string>("");
   const [statusId, setStatusId] = useState<string>(
     project.statuses[0]?.id || ""
   );
   const [assigneeId, setAssigneeId] = useState<string>("");
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,14 +96,18 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
         storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
         statusId: statusId || undefined,
         assigneeId: assigneeId ? assigneeId : null,
+        startDate: startDate || undefined,
+        dueDate: dueDate || undefined,
       });
       setTitle("");
       setDescription("");
       setStoryPoints("");
+      setStartDate(null);
+      setDueDate(null);
       onIssueCreated();
       onClose();
     } catch (err: any) {
-      setError(err.message || "Gagal membuat item.");
+      setError(err.message || "Failed to create work item.");
     } finally {
       setLoading(false);
     }
@@ -106,14 +129,14 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-lg shadow-jira-modal border border-jira-border w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="bg-white dark:bg-jira-dark-surface rounded-lg shadow-jira-modal border border-jira-border dark:border-jira-dark-border w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-jira-text dark:text-jira-dark-text"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-jira-border flex items-center justify-between">
-          <h2 className="text-base font-bold text-jira-text">{t.nav.createIssue}</h2>
+        <div className="px-6 py-4 border-b border-jira-border dark:border-jira-dark-border flex items-center justify-between">
+          <h2 className="text-base font-bold text-jira-text dark:text-jira-dark-text">{t.nav.createIssue}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded text-jira-subtle hover:text-jira-text hover:bg-slate-100 transition"
+            className="p-1 rounded text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white hover:bg-slate-100 dark:hover:bg-jira-dark-hover transition"
           >
             <X size={18} />
           </button>
@@ -130,45 +153,35 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
           {/* Project & Issue Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+              <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
                 Project
               </label>
-              <div className="flex items-center gap-2 p-2 bg-slate-100 border border-jira-border rounded text-sm text-jira-text font-medium">
+              <div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-jira-dark-card border border-jira-border dark:border-jira-dark-border rounded text-sm text-jira-text dark:text-jira-dark-text font-medium">
                 <span
                   className={`w-5 h-5 rounded bg-gradient-to-tr ${theme.bg} text-white flex items-center justify-center text-[10px] font-bold`}
                 >
                   {initials}
                 </span>
                 <span className="truncate">{project.name}</span>
-                <span className="text-xs text-jira-subtle font-mono">
+                <span className="text-xs text-jira-subtle dark:text-jira-dark-subtle font-mono">
                   ({project.key})
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+              <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
                 Issue Type <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value as IssueType)}
-                  className="w-full p-2 bg-white border border-jira-border rounded text-sm text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
-                >
-                  {issueTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                <IssueTypeSelect value={type} onChange={setType} />
               </div>
             </div>
           </div>
 
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+            <label className="block text-xs font-semibold text-jira-subtle dark:text-slate-400 uppercase mb-1">
               Summary <span className="text-red-500">*</span>
             </label>
             <input
@@ -177,13 +190,13 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Implement user authentication workflow"
-              className="w-full px-3 py-2 bg-white border border-jira-border rounded text-sm text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
+              className="w-full px-3 py-2 bg-white dark:bg-jira-dark-card border border-jira-border dark:border-jira-dark-border rounded text-sm text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+            <label className="block text-xs font-semibold text-jira-subtle dark:text-slate-400 uppercase mb-1">
               Description
             </label>
             <textarea
@@ -191,51 +204,38 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add details, acceptance criteria, or context..."
-              className="w-full px-3 py-2 bg-white border border-jira-border rounded text-sm text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue resize-y"
+              className="w-full px-3 py-2 bg-white dark:bg-jira-dark-card border border-jira-border dark:border-jira-dark-border rounded text-sm text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue resize-y"
             />
           </div>
 
           {/* Status & Priority */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+              <label className="block text-xs font-semibold text-jira-subtle dark:text-slate-400 uppercase mb-1">
                 Status
               </label>
-              <select
+              <StatusSelect
                 value={statusId}
-                onChange={(e) => setStatusId(e.target.value)}
-                className="w-full p-2 bg-white border border-jira-border rounded text-sm text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
-              >
-                {project.statuses.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.name}
-                  </option>
-                ))}
-              </select>
+                statuses={project.statuses}
+                onChange={setStatusId}
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+              <label className="block text-xs font-semibold text-jira-subtle dark:text-slate-400 uppercase mb-1">
                 Priority
               </label>
-              <select
+              <PrioritySelect
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as PriorityLevel)}
-                className="w-full p-2 bg-white border border-jira-border rounded text-sm text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
-              >
-                {priorities.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                onChange={setPriority}
+              />
             </div>
           </div>
 
           {/* Story Points & Assignee */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+              <label className="block text-xs font-semibold text-jira-subtle dark:text-slate-400 uppercase mb-1">
                 Story Points
               </label>
               <input
@@ -245,35 +245,44 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
                 value={storyPoints}
                 onChange={(e) => setStoryPoints(e.target.value)}
                 placeholder="e.g. 3, 5, 8"
-                className="w-full px-3 py-2 bg-white border border-jira-border rounded text-sm text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
+                className="w-full px-3 py-2 bg-white dark:bg-jira-dark-card border border-jira-border dark:border-jira-dark-border rounded text-sm text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+              <label className="block text-xs font-semibold text-jira-subtle dark:text-slate-400 uppercase mb-1">
                 Assignee
               </label>
-              <select
+              <AssigneeSelect
                 value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full p-2 bg-white border border-jira-border rounded text-sm text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
-              >
-                <option value="">Unassigned</option>
-                {project.members.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.user.name} ({m.user.email})
-                  </option>
-                ))}
-              </select>
+                members={project.members.map((m) => m.user)}
+                onChange={(val) => setAssigneeId(val || "")}
+              />
             </div>
           </div>
 
+          {/* Start Date & Due Date */}
+          <div className="grid grid-cols-2 gap-4">
+            <DatePickerField
+              label="Start Date"
+              value={startDate}
+              placeholder="Add date"
+              onChange={(d) => setStartDate(d)}
+            />
+            <DatePickerField
+              label="Due Date"
+              value={dueDate}
+              placeholder="Add date"
+              onChange={(d) => setDueDate(d)}
+            />
+          </div>
+
           {/* Modal Footer */}
-          <div className="pt-4 border-t border-jira-border flex items-center justify-end gap-2">
+          <div className="pt-4 border-t border-jira-border dark:border-jira-dark-border flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-jira-subtle hover:text-jira-text hover:bg-slate-100 rounded-md transition"
+              className="px-4 py-2 text-xs font-semibold text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white hover:bg-slate-100 dark:hover:bg-jira-dark-hover rounded-md transition"
             >
               {t.common.cancel}
             </button>

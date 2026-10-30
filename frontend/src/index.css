@@ -3,10 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  html,
   body {
     color: #172B4D;
     background-color: #F7F8F9;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  html.dark,
+  html.dark body,
+  .dark body {
+    color: #DEE4EA;
+    background-color: #1D2125;
   }
 }
 
@@ -27,6 +36,14 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #B3B9C4;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #333C44;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #454F59;
 }
 
 /* Jira Lozenge badge utility */
@@ -52,7 +69,85 @@
   color: #0747A6;
 }
 
+.jira-lozenge-inreview {
+  background-color: #EAE6FF;
+  color: #403294;
+}
+
 .jira-lozenge-done {
   background-color: #E3FCEF;
   color: #006644;
 }
+
+.dark .jira-lozenge-todo {
+  background-color: #2C333A;
+  color: #9FADBC;
+}
+
+.dark .jira-lozenge-inprogress {
+  background-color: #1C2B41;
+  color: #579DFF;
+}
+
+.dark .jira-lozenge-inreview {
+  background-color: #28224D;
+  color: #B8ACF6;
+}
+
+.dark .jira-lozenge-done {
+  background-color: #143422;
+  color: #4BCE97;
+}
+
+/* Rich media and comment images styling to eliminate layout shifting & repaints */
+.comment-rich-content img,
+.prose img {
+  max-height: 280px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  background-color: #F8FAFC;
+  display: inline-block;
+  vertical-align: middle;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.dark .comment-rich-content img,
+.dark .prose img {
+  background-color: #1D2125 !important;
+  border-color: #333C44 !important;
+}
+
+/* Dark mode code blocks, inline code, pre, blockquote in comments and description */
+.dark .prose pre,
+.dark .comment-rich-content pre,
+.dark pre {
+  background-color: #161A1D !important;
+  color: #DEE4EA !important;
+  border: 1px solid #333C44 !important;
+}
+
+.dark .prose code,
+.dark .comment-rich-content code,
+.dark code {
+  color: #579DFF !important;
+}
+
+.dark .prose pre code,
+.dark .comment-rich-content pre code,
+.dark pre code {
+  color: #DEE4EA !important;
+  background-color: transparent !important;
+}
+
+.dark .prose blockquote,
+.dark .comment-rich-content blockquote {
+  border-left-color: #579DFF !important;
+  color: #9FADBC !important;
+}
+
+

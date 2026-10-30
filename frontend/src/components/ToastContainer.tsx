@@ -55,7 +55,7 @@ export const ToastContainer: React.FC = () => {
                 type="button"
                 onClick={() => removeToast(toast.id)}
                 className="text-slate-400 hover:text-white p-0.5 rounded transition"
-                aria-label="Tutup"
+                aria-label="Close"
               >
                 <X size={14} />
               </button>

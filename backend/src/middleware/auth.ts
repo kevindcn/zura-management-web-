@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { verifyToken, AuthUser } from "../lib/jwt.js";
+import { ProjectRole } from "../lib/permissions.js";
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-}
+export { AuthUser };
 
 export interface AuthRequest extends Request {
   user?: AuthUser;
+  projectId?: string;
+  projectRole?: ProjectRole;
+  projectLeadId?: string;
 }
 
 export const authenticateToken = (
@@ -24,10 +24,8 @@ export const authenticateToken = (
     return;
   }
 
-  const secret = process.env.JWT_SECRET || "default_fallback_secret_jira";
-
   try {
-    const decoded = jwt.verify(token, secret) as AuthUser;
+    const decoded = verifyToken(token);
     req.user = decoded;
     next();
   } catch (error) {
