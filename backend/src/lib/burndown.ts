@@ -172,7 +172,14 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
   const startDayEndTs = getJakartaEndOfDayTimestamp(startDateStr);
 
   // 2. Determine sprint end day in Asia/Jakarta timezone
-  const rawEnd = sprint.endDate || (sprint.closedAt ? sprint.closedAt : null);
+  // For CLOSED state, closedAt takes precedence over endDate
+  let rawEnd: Date | string | null = null;
+  if (sprint.state === "CLOSED") {
+    rawEnd = sprint.closedAt || sprint.endDate || null;
+  } else {
+    rawEnd = sprint.endDate || (sprint.closedAt ? sprint.closedAt : null);
+  }
+
   let endDateStr: string;
   if (rawEnd) {
     endDateStr = getJakartaDateString(rawEnd);
@@ -196,8 +203,21 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
     ? (todayJakarta < startDateStr ? startDateStr : (todayJakarta > endDateStr ? endDateStr : todayJakarta))
     : endDateStr;
 
+  // Evaluation cut-off timestamp for CLOSED sprint: max(closedAt, akhir hari mulai)
+  // Events after this cut-off are strictly ignored. Sprint cannot be "closed before started".
+  let evalCutoffTs = Infinity;
+  if (sprint.state === "CLOSED") {
+    const closedTs = sprint.closedAt ? new Date(sprint.closedAt).getTime() : startDayEndTs;
+    evalCutoffTs = Math.max(closedTs, startDayEndTs);
+  }
+
+  // Filter events for CLOSED sprint up to evalCutoffTs
+  const eligibleEvents = sprint.state === "CLOSED"
+    ? events.filter((e) => new Date(e.createdAt).getTime() <= evalCutoffTs)
+    : events;
+
   // Chronologically sort events
-  const sortedEvents = [...events].sort(
+  const sortedEvents = [...eligibleEvents].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
@@ -470,6 +490,10 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
     const addedTs = earliestAddedMap.get(issueId);
     if (addedTs !== undefined) {
       return addedTs > startDayEndTs;
+    }
+    const issueObj = (eligibleIssues as any[])?.find((i) => i.id === issueId);
+    if (issueObj?.createdAt) {
+      return new Date(issueObj.createdAt).getTime() > startDayEndTs;
     }
     return false;
   };

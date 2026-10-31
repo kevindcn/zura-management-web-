@@ -88,39 +88,55 @@ async function executeCompleteSprint(
       }
     }
 
+    // Query issue events for sprint to compute metrics with SSOT engine
+    let events = await tx.issueEvent.findMany({
+      where: { sprintId: sprint.id },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (events.length === 0 && sprint.issues.length > 0) {
+      const startedTime = sprint.startedAt || sprint.createdAt;
+      for (const iss of sprint.issues) {
+        if (isEligibleForReporting(iss.type)) {
+          await recordIssueEvent(tx, {
+            issueId: iss.id,
+            sprintId: sprint.id,
+            eventType: "ADDED_TO_SPRINT",
+            points: iss.storyPoints,
+            category: iss.status.category,
+            createdAt: startedTime,
+          });
+        }
+      }
+      events = await tx.issueEvent.findMany({
+        where: { sprintId: sprint.id },
+        orderBy: { createdAt: "asc" },
+      });
+    }
+
     // Filter eligible issues (STORY, TASK, BUG)
     const allIssues = sprint.issues;
     const eligibleIssues = allIssues.filter((i) => isEligibleForReporting(i.type));
 
-    const completedEligible = eligibleIssues.filter((i) => i.status.category === "DONE");
-    const incompleteEligible = eligibleIssues.filter((i) => i.status.category !== "DONE");
-
-    const completedPoints = completedEligible.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-    const completedIssuesCount = completedEligible.length;
-
-    const sprintStartTime = sprint.startedAt ? new Date(sprint.startedAt).getTime() : new Date(sprint.createdAt).getTime();
-
-    // Query earliest ADDED_TO_SPRINT timestamp per issue from event stream
-    const sprintEvents = await tx.issueEvent.findMany({
-      where: { sprintId: sprint.id, eventType: "ADDED_TO_SPRINT" },
-      select: { issueId: true, createdAt: true },
-      orderBy: { createdAt: "asc" },
+    // Compute metrics before closing and rollover
+    const metrics = computeAgileSprintMetrics({
+      sprint,
+      events,
+      eligibleIssues,
+      metric: "points",
     });
-    const earliestAddedMap = new Map<string, number>();
-    for (const e of sprintEvents) {
-      const t = new Date(e.createdAt).getTime();
-      if (!earliestAddedMap.has(e.issueId) || t < earliestAddedMap.get(e.issueId)!) {
-        earliestAddedMap.set(e.issueId, t);
-      }
-    }
+
+    const completedPoints = metrics.summary.completedPoints;
+    const completedIssuesCount = metrics.summary.completedIssues;
+    const committedPoints = metrics.summary.committedPoints;
+    const committedIssuesCount = metrics.summary.committedIssues;
+
+    const closeTime = new Date();
 
     // 1. Write frozen SprintIssueResult for ALL issues in sprint
     for (const issue of allIssues) {
       const isDone = issue.status.category === "DONE";
-      const addedTs = earliestAddedMap.get(issue.id);
-      const addedMidSprint = addedTs
-        ? addedTs > sprintStartTime + 60000
-        : new Date(issue.createdAt).getTime() > sprintStartTime + 60000;
+      const addedMidSprint = metrics.isIssueAddedMidSprint(issue.id);
 
       let outcome = "COMPLETED";
       if (!isDone) {
@@ -161,13 +177,15 @@ async function executeCompleteSprint(
         data: { sprintId: targetSprintId || null },
       });
 
-      // Record IssueEvents for reporting replay
+      // Record IssueEvents for reporting replay (timestamped after closeTime so they don't alter sprint's historical metrics)
+      const rolloverEventTime = new Date(closeTime.getTime() + 1000);
       for (const inc of incompleteAll) {
         if (isEligibleForReporting(inc.type)) {
           await recordIssueEvent(tx, {
             issueId: inc.id,
             sprintId: sprint.id,
             eventType: "REMOVED_FROM_SPRINT",
+            createdAt: rolloverEventTime,
           });
 
           if (targetSprintId && verifiedTargetSprint?.state === "ACTIVE") {
@@ -177,6 +195,7 @@ async function executeCompleteSprint(
               eventType: "ADDED_TO_SPRINT",
               points: inc.storyPoints,
               category: inc.status.category,
+              createdAt: rolloverEventTime,
             });
           }
         }
@@ -188,7 +207,9 @@ async function executeCompleteSprint(
       where: { id: sprint.id },
       data: {
         state: "CLOSED",
-        closedAt: new Date(),
+        closedAt: closeTime,
+        committedPoints,
+        committedIssues: committedIssuesCount,
         completedPoints,
         completedIssues: completedIssuesCount,
       },
@@ -774,9 +795,17 @@ router.get(
         orderBy: { createdAt: "asc" },
       });
 
-      // If sprint is CLOSED: read from frozen SprintIssueResult
-      if (sprint.state === "CLOSED" && sprint.issueResults.length > 0) {
-        const miniBurndown = computeBurndown(events, sprint, "points");
+      // If sprint is CLOSED: read frozen committed and completed from Sprint, and compute event metrics via computeAgileSprintMetrics
+      if (sprint.state === "CLOSED") {
+        const eligibleIssues = sprint.issues.filter((i) => isEligibleForReporting(i.type));
+
+        const metrics = computeAgileSprintMetrics({
+          sprint,
+          events,
+          eligibleIssues,
+          metric: "points",
+        });
+
         const completedList = sprint.issueResults
           .filter((r) => r.outcome === "COMPLETED")
           .map((r) => ({
@@ -821,11 +850,59 @@ router.get(
             outcome: r.outcome,
           }));
 
+        // Read frozen committed and completed directly from Sprint columns (NO fallback for legacy null/0)
         const committedPoints = sprint.committedPoints ?? 0;
+        const committedIssues = sprint.committedIssues ?? 0;
         const completedPoints = sprint.completedPoints ?? 0;
+        const completedIssues = sprint.completedIssues ?? 0;
         const completionRate = committedPoints > 0 ? Math.round((completedPoints / committedPoints) * 100) : null;
         const carriedOverPoints = notCompletedList.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-        const scopeAddedPoints = addedMidSprintList.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
+        const carriedOverIssues = notCompletedList.length;
+
+        // Query metadata for removed issues if any
+        const removedIssueIds = metrics.removedFromSprintIssuesList.map((r) => r.issueId);
+        const removedIssuesDb = removedIssueIds.length > 0
+          ? await prisma.issue.findMany({
+              where: { id: { in: removedIssueIds } },
+              include: {
+                status: true,
+                assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+              },
+            })
+          : [];
+        const removedIssuesDbMap = new Map(removedIssuesDb.map((i) => [i.id, i]));
+
+        const removedFromSprintIssues = metrics.removedFromSprintIssuesList.map((r) => {
+          const dbIssue = removedIssuesDbMap.get(r.issueId);
+          return {
+            id: r.issueId,
+            key: dbIssue?.key ?? "",
+            title: dbIssue?.title ?? "",
+            type: dbIssue?.type ?? "STORY",
+            priority: dbIssue?.priority ?? "MEDIUM",
+            storyPoints: r.storyPoints,
+            status: dbIssue?.status ?? null,
+            assignee: dbIssue?.assignee ?? null,
+          };
+        });
+
+        const miniBurndown: BurndownResult = {
+          sprint: {
+            id: sprint.id,
+            name: sprint.name,
+            state: sprint.state,
+          },
+          metric: "points",
+          unestimated: metrics.unestimated,
+          summary: {
+            committed: metrics.summary.committed,
+            completed: metrics.summary.completed,
+            remaining: metrics.summary.remaining,
+            scopeAdded: metrics.summary.scopeAdded,
+            removed: metrics.summary.removed,
+          },
+          days: metrics.days,
+        };
 
         res.json({
           sprint: {
@@ -841,18 +918,21 @@ router.get(
           },
           summary: {
             committedPoints,
-            committedIssues: sprint.committedIssues ?? 0,
+            committedIssues,
             completedPoints,
-            completedIssues: sprint.completedIssues ?? 0,
+            completedIssues,
             completionRate,
-            scopeAddedPoints,
-            scopeAddedIssues: addedMidSprintList.length,
+            scopeAddedPoints: metrics.summary.scopeAddedPoints,
+            scopeAddedIssues: metrics.summary.scopeAddedIssues,
+            removedPoints: metrics.summary.removedPoints,
+            removedIssues: metrics.summary.removedIssues,
             carriedOverPoints,
-            carriedOverIssues: notCompletedList.length,
+            carriedOverIssues,
           },
           completedIssues: completedList,
           notCompletedIssues: notCompletedList,
           addedMidSprintIssues: addedMidSprintList,
+          removedFromSprintIssues,
           miniBurndown,
           isPreview: false,
         });
