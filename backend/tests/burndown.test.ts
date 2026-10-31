@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeBurndown, BurndownIssueEvent, BurndownSprintInput } from "../src/lib/burndown.js";
+import { computeBurndown, classifySprintIssues, BurndownIssueEvent, BurndownSprintInput } from "../src/lib/burndown.js";
 
 describe("Burndown Calculator (computeBurndown Unit Tests)", () => {
   const baseSprint: BurndownSprintInput = {
@@ -157,3 +157,49 @@ describe("Burndown Calculator (computeBurndown Unit Tests)", () => {
     expect(result.days.length).toBe(5);
   });
 });
+
+describe("classifySprintIssues Unit Tests", () => {
+  it("strictly enforces Asia/Jakarta midnight boundary: 16:59:59Z is committed, 17:00:00Z is scope added", () => {
+    // Sprint starts on 2026-11-01 (Asia/Jakarta UTC+7)
+    // 2026-11-01 23:59:59.999 WIB is 2026-11-01T16:59:59.999Z
+    // 2026-11-02 00:00:00.000 WIB is 2026-11-01T17:00:00.000Z
+    const sprint = {
+      startDate: "2026-11-01T00:00:00.000Z",
+      startedAt: null,
+      committedPoints: 0,
+      committedIssues: 0,
+    };
+
+    const eligibleIssues = [
+      { id: "iss-boundary-committed", storyPoints: 3, status: { category: "TO_DO" } },
+      { id: "iss-boundary-scoped", storyPoints: 5, status: { category: "TO_DO" } },
+    ];
+
+    const events = [
+      {
+        issueId: "iss-boundary-committed",
+        eventType: "ADDED_TO_SPRINT",
+        points: 3,
+        createdAt: "2026-11-01T16:59:59.000Z", // 23:59:59 WIB -> COMMITTED
+      },
+      {
+        issueId: "iss-boundary-scoped",
+        eventType: "ADDED_TO_SPRINT",
+        points: 5,
+        createdAt: "2026-11-01T17:00:00.000Z", // 00:00:00 WIB (Next day) -> SCOPE ADDED
+      },
+    ];
+
+    const res = classifySprintIssues({ sprint, events, eligibleIssues });
+
+    expect(res.isIssueAddedMidSprint("iss-boundary-committed")).toBe(false);
+    expect(res.isIssueAddedMidSprint("iss-boundary-scoped")).toBe(true);
+
+    expect(res.committedPoints).toBe(3);
+    expect(res.committedIssuesCount).toBe(1);
+    expect(res.scopeAddedPoints).toBe(5);
+    expect(res.scopeAddedIssuesCount).toBe(1);
+    expect(res.carriedOverPoints).toBe(8);
+  });
+});
+

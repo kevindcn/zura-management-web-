@@ -77,7 +77,10 @@ router.post("/login", authRateLimiter, async (req, res, next) => {
       return;
     }
 
-    const token = generateToken(user);
+    const isDemo = process.env.ENABLE_DEMO_LOGIN === "true" && user.email.toLowerCase() === "alex.lead@jira-lite.local";
+    const token = isDemo
+      ? generateToken({ ...user, isDemo: true }, "1h")
+      : generateToken(user);
     res.json({
       token,
       user: {
@@ -118,11 +121,11 @@ router.get("/me", authenticateToken, async (req: AuthRequest, res: Response, nex
   }
 });
 
-// POST /api/auth/demo-login - Only available in non-production AND when DEMO_MODE=true
+// POST /api/auth/demo-login - Only available when ENABLE_DEMO_LOGIN=true
 router.post("/demo-login", authRateLimiter, async (req, res, next) => {
   try {
-    if (process.env.NODE_ENV === "production" || process.env.DEMO_MODE !== "true") {
-      res.status(404).json({ message: "Demo mode is disabled" });
+    if (process.env.ENABLE_DEMO_LOGIN !== "true") {
+      res.status(404).json({ message: "Demo login is disabled" });
       return;
     }
 
@@ -142,7 +145,7 @@ router.post("/demo-login", authRateLimiter, async (req, res, next) => {
       });
     }
 
-    const token = generateToken(demoUser);
+    const token = generateToken({ ...demoUser, isDemo: true }, "1h");
     res.json({
       token,
       user: {

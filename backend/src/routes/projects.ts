@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
-import { validateMemberMutation, ALL_ROLES } from "../lib/permissions.js";
+import { validateMemberMutation, ALL_ROLES, isDemoUser } from "../lib/permissions.js";
 import { notifyUser } from "../lib/notifications.js";
 import { memberActionRateLimiter } from "../middleware/rateLimiter.js";
 
@@ -246,6 +246,11 @@ router.patch("/:key", authenticateToken, requirePermission("project:settings"), 
 // GET /api/projects/:key/available-users - Search users not yet in this project
 router.get("/:key/available-users", authenticateToken, requirePermission("member:manage"), async (req: AuthRequest, res: Response, next) => {
   try {
+    if (isDemoUser(req.user)) {
+      res.status(403).json({ message: "Akun demo tidak diizinkan untuk melihat daftar pengguna" });
+      return;
+    }
+
     const key = req.params.key.toUpperCase();
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
@@ -296,6 +301,11 @@ router.post(
   requirePermission("member:manage"),
   async (req: AuthRequest, res: Response, next) => {
     try {
+      if (isDemoUser(req.user)) {
+        res.status(403).json({ message: "Akun demo tidak diizinkan untuk menambah anggota ke project" });
+        return;
+      }
+
       const key = req.params.key.toUpperCase();
       const { userId: targetUserId, email, role } = addMemberSchema.parse(req.body);
 
@@ -394,6 +404,11 @@ router.patch(
   requirePermission("member:manage"),
   async (req: AuthRequest, res: Response, next) => {
     try {
+      if (isDemoUser(req.user)) {
+        res.status(403).json({ message: "Akun demo tidak diizinkan untuk mengubah peran anggota" });
+        return;
+      }
+
       const key = req.params.key.toUpperCase();
       const { userId: targetUserId } = req.params;
       const { role: newRole } = memberRoleSchema.parse(req.body);
@@ -469,6 +484,11 @@ router.patch(
 // DELETE /api/projects/:key/members/:userId - Remove member (with admin & lead lock)
 router.delete("/:key/members/:userId", authenticateToken, requirePermission("member:manage"), async (req: AuthRequest, res: Response, next) => {
   try {
+    if (isDemoUser(req.user)) {
+      res.status(403).json({ message: "Akun demo tidak diizinkan untuk mengeluarkan anggota dari project" });
+      return;
+    }
+
     const key = req.params.key.toUpperCase();
     const { userId: targetUserId } = req.params;
 
@@ -514,6 +534,11 @@ router.delete("/:key/members/:userId", authenticateToken, requirePermission("mem
 // DELETE /api/projects/:key - Delete project (lead only)
 router.delete("/:key", authenticateToken, requirePermission("project:delete"), async (req: AuthRequest, res: Response, next) => {
   try {
+    if (isDemoUser(req.user)) {
+      res.status(403).json({ message: "Akun demo tidak diizinkan untuk menghapus project" });
+      return;
+    }
+
     const key = req.params.key.toUpperCase();
     const project = await prisma.project.findUnique({ where: { key } });
 

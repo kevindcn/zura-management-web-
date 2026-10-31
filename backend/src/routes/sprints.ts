@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
 import { notifyUser } from "../lib/notifications.js";
-import { computeBurndown } from "../lib/burndown.js";
+import { computeBurndown, classifySprintIssues } from "../lib/burndown.js";
 import { isEligibleForReporting, recordIssueEvent } from "../lib/issueEvents.js";
 
 const router = Router();
@@ -844,53 +844,27 @@ router.get(
 
       // Live Preview for ACTIVE or FUTURE sprint
       const eligibleIssues = sprint.issues.filter((i) => isEligibleForReporting(i.type));
-      const completed = eligibleIssues.filter((i) => i.status.category === "DONE");
-      const notCompleted = eligibleIssues.filter((i) => i.status.category !== "DONE");
 
-      // Determine sprint start timestamp (Single Source of Truth)
-      const sprintStartTime = sprint.startedAt
-        ? new Date(sprint.startedAt).getTime()
-        : sprint.startDate
-        ? new Date(sprint.startDate).getTime()
-        : new Date(sprint.createdAt).getTime();
+      const classification = classifySprintIssues({
+        sprint,
+        events,
+        eligibleIssues,
+      });
 
-      // Find earliest ADDED_TO_SPRINT event timestamp per issue from event stream
-      const earliestAddedMap = new Map<string, number>();
-      for (const e of events) {
-        if (e.eventType === "ADDED_TO_SPRINT") {
-          const t = new Date(e.createdAt).getTime();
-          if (!earliestAddedMap.has(e.issueId) || t < earliestAddedMap.get(e.issueId)!) {
-            earliestAddedMap.set(e.issueId, t);
-          }
-        }
-      }
+      const {
+        committedPoints,
+        committedIssuesCount: committedIssues,
+        completedPoints,
+        completedIssuesList: completed,
+        notCompletedIssuesList: notCompleted,
+        addedMidSprintIssuesList: addedMidSprint,
+        scopeAddedPoints,
+        scopeAddedIssuesCount: scopeAddedIssues,
+        carriedOverPoints,
+        isIssueAddedMidSprint,
+      } = classification;
 
-      // An issue is added mid-sprint ONLY if its earliest ADDED_TO_SPRINT occurred after sprint start (+ 60s buffer)
-      const isIssueAddedMidSprint = (issueId: string): boolean => {
-        const addedTs = earliestAddedMap.get(issueId);
-        if (!addedTs) return false;
-        return addedTs > sprintStartTime + 60000;
-      };
-
-      const addedMidSprint = eligibleIssues.filter((i) => isIssueAddedMidSprint(i.id));
-      const committedIssuesList = eligibleIssues.filter((i) => !isIssueAddedMidSprint(i.id));
-
-      const scopeAddedPoints = addedMidSprint.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-      const scopeAddedIssues = addedMidSprint.length;
-
-      const committedPoints =
-        sprint.committedPoints !== null && sprint.committedPoints !== undefined && sprint.committedPoints > 0
-          ? sprint.committedPoints
-          : committedIssuesList.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-
-      const committedIssues =
-        sprint.committedIssues !== null && sprint.committedIssues !== undefined && sprint.committedIssues > 0
-          ? sprint.committedIssues
-          : committedIssuesList.length;
-
-      const completedPoints = completed.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
       const completionRate = committedPoints > 0 ? Math.round((completedPoints / committedPoints) * 100) : null;
-      const carriedOverPoints = notCompleted.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
 
       res.json({
         sprint: {

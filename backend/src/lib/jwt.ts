@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  isDemo?: boolean;
 }
 
 export function getJwtSecret(): string {
@@ -17,12 +18,16 @@ export function getJwtSecret(): string {
 
 export function generateToken(user: AuthUser, expiresIn: string = "7d"): string {
   const secret = getJwtSecret();
+  const payload: Record<string, any> = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+  };
+  if (user.isDemo) {
+    payload.isDemo = true;
+  }
   return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    },
+    payload,
     secret,
     { expiresIn: expiresIn as any }
   );

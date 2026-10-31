@@ -306,3 +306,102 @@ export function computeBurndown(
     days,
   };
 }
+
+export interface ClassifySprintIssuesInput<T = any> {
+  sprint: {
+    startDate?: Date | string | null;
+    startedAt?: Date | string | null;
+    committedPoints?: number | null;
+    committedIssues?: number | null;
+  };
+  events: Array<{
+    issueId: string;
+    eventType: string;
+    points?: number | null;
+    createdAt: Date | string;
+  }>;
+  eligibleIssues: Array<T & {
+    id: string;
+    storyPoints?: number | null;
+    status: { category: string; [key: string]: any };
+  }>;
+}
+
+export interface ClassifySprintIssuesResult<T = any> {
+  committedIssuesList: T[];
+  committedPoints: number;
+  committedIssuesCount: number;
+  addedMidSprintIssuesList: T[];
+  scopeAddedPoints: number;
+  scopeAddedIssuesCount: number;
+  completedIssuesList: T[];
+  completedPoints: number;
+  notCompletedIssuesList: T[];
+  carriedOverPoints: number;
+  isIssueAddedMidSprint: (issueId: string) => boolean;
+}
+
+/**
+ * Single source of truth for sprint issue classification:
+ * An issue is COMMITTED if its earliest ADDED_TO_SPRINT event occurred on or before
+ * the sprint start date calendar day in Asia/Jakarta timezone (up to 23:59:59.999 WIB).
+ * Any issue whose earliest ADDED_TO_SPRINT occurred after that midnight boundary is SCOPE ADDED (added mid-sprint).
+ */
+export function classifySprintIssues<T = any>(
+  input: ClassifySprintIssuesInput<T>
+): ClassifySprintIssuesResult<T> {
+  const { sprint, events, eligibleIssues } = input;
+
+  const rawStart = sprint.startDate || sprint.startedAt || new Date();
+  const startDateStr = getJakartaDateString(rawStart);
+  const startDayEndTs = getJakartaEndOfDayTimestamp(startDateStr);
+
+  const earliestAddedMap = new Map<string, number>();
+  for (const e of events) {
+    if (e.eventType === "ADDED_TO_SPRINT") {
+      const t = new Date(e.createdAt).getTime();
+      if (!earliestAddedMap.has(e.issueId) || t < earliestAddedMap.get(e.issueId)!) {
+        earliestAddedMap.set(e.issueId, t);
+      }
+    }
+  }
+
+  const isIssueAddedMidSprint = (issueId: string): boolean => {
+    const addedTs = earliestAddedMap.get(issueId);
+    if (addedTs === undefined) return false;
+    return addedTs > startDayEndTs;
+  };
+
+  const committedIssuesList = eligibleIssues.filter((i) => !isIssueAddedMidSprint(i.id));
+  const addedMidSprintIssuesList = eligibleIssues.filter((i) => isIssueAddedMidSprint(i.id));
+  const completedIssuesList = eligibleIssues.filter((i) => i.status.category === "DONE");
+  const notCompletedIssuesList = eligibleIssues.filter((i) => i.status.category !== "DONE");
+
+  const committedPoints =
+    sprint.committedPoints !== null && sprint.committedPoints !== undefined && sprint.committedPoints > 0
+      ? sprint.committedPoints
+      : committedIssuesList.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
+
+  const committedIssuesCount =
+    sprint.committedIssues !== null && sprint.committedIssues !== undefined && sprint.committedIssues > 0
+      ? sprint.committedIssues
+      : committedIssuesList.length;
+
+  const scopeAddedPoints = addedMidSprintIssuesList.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
+  const completedPoints = completedIssuesList.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
+  const carriedOverPoints = notCompletedIssuesList.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
+
+  return {
+    committedIssuesList,
+    committedPoints,
+    committedIssuesCount,
+    addedMidSprintIssuesList,
+    scopeAddedPoints,
+    scopeAddedIssuesCount: addedMidSprintIssuesList.length,
+    completedIssuesList,
+    completedPoints,
+    notCompletedIssuesList,
+    carriedOverPoints,
+    isIssueAddedMidSprint,
+  };
+}

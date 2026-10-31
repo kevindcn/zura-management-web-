@@ -152,3 +152,11 @@ export function validateMemberMutation(params: MemberValidationParams): {
 
   return { allowed: true };
 }
+
+/**
+ * Check if the authenticated user has a demo session based strictly on the JWT isDemo claim.
+ */
+export function isDemoUser(user?: { isDemo?: boolean } | null): boolean {
+  return Boolean(user?.isDemo);
+}
+

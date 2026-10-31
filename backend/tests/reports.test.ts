@@ -359,4 +359,280 @@ describe("Reports API Integration Tests (Burndown, Velocity, Sprint Report)", ()
       expect(res.status).toBe(403);
     });
   });
+
+  describe("Reporting Single Source of Truth & Boundary Tests", () => {
+    it("ensures Asia/Jakarta midnight boundary is identical across /burndown and /report: 16:59:59Z is committed, 17:00:00Z is scope added", async () => {
+      // Sprint started 2 days ago (2026-10-29 in WIB) so burndown evaluates days up to today
+      const boundarySprint = await prisma.sprint.create({
+        data: {
+          name: "Boundary Sprint",
+          state: "ACTIVE",
+          projectId: project.id,
+          startDate: new Date("2026-10-29T00:00:00Z"),
+          endDate: new Date("2026-11-12T23:59:59Z"),
+          startedAt: null,
+          committedPoints: 0,
+          committedIssues: 0,
+        },
+      });
+
+      const bIssue1 = await prisma.issue.create({
+        data: {
+          key: "REP-B1",
+          number: 101,
+          title: "Committed at 23:59:59 WIB",
+          type: "STORY",
+          storyPoints: 3,
+          statusId: todoStatus.id,
+          reporterId: leadUser.id,
+          projectId: project.id,
+          sprintId: boundarySprint.id,
+        },
+      });
+
+      const bIssue2 = await prisma.issue.create({
+        data: {
+          key: "REP-B2",
+          number: 102,
+          title: "Scope added at 00:00:00 WIB",
+          type: "TASK",
+          storyPoints: 5,
+          statusId: todoStatus.id,
+          reporterId: leadUser.id,
+          projectId: project.id,
+          sprintId: boundarySprint.id,
+        },
+      });
+
+      // 16:59:59Z is 23:59:59 WIB (Day 1 in Asia/Jakarta)
+      await prisma.issueEvent.create({
+        data: {
+          issueId: bIssue1.id,
+          sprintId: boundarySprint.id,
+          eventType: "ADDED_TO_SPRINT",
+          points: 3,
+          category: "TO_DO",
+          createdAt: new Date("2026-10-29T16:59:59.000Z"),
+        },
+      });
+
+      // 17:00:00Z is 00:00:00 WIB next day (Day 2 in Asia/Jakarta)
+      await prisma.issueEvent.create({
+        data: {
+          issueId: bIssue2.id,
+          sprintId: boundarySprint.id,
+          eventType: "ADDED_TO_SPRINT",
+          points: 5,
+          category: "TO_DO",
+          createdAt: new Date("2026-10-29T17:00:00.000Z"),
+        },
+      });
+
+      // Query both endpoints
+      const burndownRes = await request(app)
+        .get(`/api/projects/${project.key}/sprints/${boundarySprint.id}/burndown?metric=points`)
+        .set("Authorization", `Bearer ${memberToken}`);
+
+      const reportRes = await request(app)
+        .get(`/api/projects/${project.key}/sprints/${boundarySprint.id}/report`)
+        .set("Authorization", `Bearer ${memberToken}`);
+
+      expect(burndownRes.status).toBe(200);
+      expect(reportRes.status).toBe(200);
+
+      // Both must agree 100%: 3 committed, 5 scope added, 8 remaining
+      expect(burndownRes.body.summary.committed).toBe(3);
+      expect(reportRes.body.summary.committedPoints).toBe(3);
+      expect(reportRes.body.summary.committedIssues).toBe(1);
+
+      expect(burndownRes.body.summary.scopeAdded).toBe(5);
+      expect(reportRes.body.summary.scopeAddedPoints).toBe(5);
+      expect(reportRes.body.summary.scopeAddedIssues).toBe(1);
+
+      expect(burndownRes.body.summary.remaining).toBe(8);
+      expect(reportRes.body.summary.carriedOverPoints).toBe(8);
+      expect(reportRes.body.summary.carriedOverIssues).toBe(2);
+    });
+
+    it("ensures active sprint with snapshot committedPoints > 0 matches across both endpoints", async () => {
+      // Sprint started 2 days ago (2026-10-29 in WIB) with 10 committed points
+      const snapSprint = await prisma.sprint.create({
+        data: {
+          name: "Snapshot Sprint",
+          state: "ACTIVE",
+          projectId: project.id,
+          startDate: new Date("2026-10-29T00:00:00Z"),
+          endDate: new Date("2026-11-12T23:59:59Z"),
+          startedAt: new Date("2026-10-29T08:00:00Z"),
+          committedPoints: 10,
+          committedIssues: 2,
+        },
+      });
+
+      const sIssue1 = await prisma.issue.create({
+        data: {
+          key: "REP-S1",
+          number: 201,
+          title: "Initial issue 1",
+          type: "STORY",
+          storyPoints: 5,
+          statusId: doneStatus.id,
+          reporterId: leadUser.id,
+          projectId: project.id,
+          sprintId: snapSprint.id,
+        },
+      });
+
+      const sIssue2 = await prisma.issue.create({
+        data: {
+          key: "REP-S2",
+          number: 202,
+          title: "Initial issue 2",
+          type: "STORY",
+          storyPoints: 5,
+          statusId: todoStatus.id,
+          reporterId: leadUser.id,
+          projectId: project.id,
+          sprintId: snapSprint.id,
+        },
+      });
+
+      // Events on day 1 (Oct 29) and day 2 (Oct 30)
+      await prisma.issueEvent.createMany({
+        data: [
+          {
+            issueId: sIssue1.id,
+            sprintId: snapSprint.id,
+            eventType: "ADDED_TO_SPRINT",
+            points: 5,
+            category: "TO_DO",
+            createdAt: new Date("2026-10-29T08:00:00Z"),
+          },
+          {
+            issueId: sIssue2.id,
+            sprintId: snapSprint.id,
+            eventType: "ADDED_TO_SPRINT",
+            points: 5,
+            category: "TO_DO",
+            createdAt: new Date("2026-10-29T08:00:00Z"),
+          },
+          {
+            issueId: sIssue1.id,
+            sprintId: snapSprint.id,
+            eventType: "STATUS_CHANGED",
+            category: "DONE",
+            previousCategory: "TO_DO",
+            createdAt: new Date("2026-10-30T08:00:00Z"),
+          },
+        ],
+      });
+
+      const burndownRes = await request(app)
+        .get(`/api/projects/${project.key}/sprints/${snapSprint.id}/burndown?metric=points`)
+        .set("Authorization", `Bearer ${memberToken}`);
+
+      const reportRes = await request(app)
+        .get(`/api/projects/${project.key}/sprints/${snapSprint.id}/report`)
+        .set("Authorization", `Bearer ${memberToken}`);
+
+      expect(burndownRes.body.summary.committed).toBe(10);
+      expect(reportRes.body.summary.committedPoints).toBe(10);
+      expect(burndownRes.body.summary.completed).toBe(5);
+      expect(reportRes.body.summary.completedPoints).toBe(5);
+      expect(burndownRes.body.summary.remaining).toBe(5);
+      expect(reportRes.body.summary.carriedOverPoints).toBe(5);
+      expect(burndownRes.body.summary.scopeAdded).toBe(0);
+      expect(reportRes.body.summary.scopeAddedPoints).toBe(0);
+    });
+
+    it("verifies CLOSED sprint immutability: late events after close do not alter report snapshot", async () => {
+      // activeSprint was completed in previous test: has frozen SprintIssueResults
+      const reportBefore = await request(app)
+        .get(`/api/projects/${project.key}/sprints/${activeSprint.id}/report`)
+        .set("Authorization", `Bearer ${viewerToken}`);
+
+      expect(reportBefore.body.summary.committedPoints).toBe(15);
+      expect(reportBefore.body.summary.completedPoints).toBe(5);
+      const originalScopeAdded = reportBefore.body.summary.scopeAddedPoints;
+
+      // Inject a rogue event dated after sprint closed
+      const rogueIssue = await prisma.issue.create({
+        data: {
+          key: "REP-ROGUE",
+          number: 999,
+          title: "Rogue late issue",
+          type: "STORY",
+          storyPoints: 13,
+          statusId: todoStatus.id,
+          reporterId: leadUser.id,
+          projectId: project.id,
+        },
+      });
+
+      await prisma.issueEvent.create({
+        data: {
+          issueId: rogueIssue.id,
+          sprintId: activeSprint.id,
+          eventType: "ADDED_TO_SPRINT",
+          points: 13,
+          category: "TO_DO",
+          createdAt: new Date("2026-12-01T12:00:00Z"), // well after closedAt
+        },
+      });
+
+      // Verify report remains strictly immutable: committed, completed, and scopeAdded are unchanged
+      const reportAfter = await request(app)
+        .get(`/api/projects/${project.key}/sprints/${activeSprint.id}/report`)
+        .set("Authorization", `Bearer ${viewerToken}`);
+
+      expect(reportAfter.body.summary.committedPoints).toBe(15);
+      expect(reportAfter.body.summary.completedPoints).toBe(5);
+      expect(reportAfter.body.summary.scopeAddedPoints).toBe(originalScopeAdded);
+    });
+
+    it("documents auto-backfill behavior when startDate is earlier than createdAt", async () => {
+      // Sprint created at 2026-10-25 with backdated startDate at 2026-10-20 (startedAt null)
+      const backdatedSprint = await prisma.sprint.create({
+        data: {
+          name: "Backdated Sprint",
+          state: "ACTIVE",
+          projectId: project.id,
+          startDate: new Date("2026-10-20T00:00:00Z"),
+          endDate: new Date("2026-11-03T00:00:00Z"),
+          startedAt: null,
+          createdAt: new Date("2026-10-25T10:00:00Z"),
+          committedPoints: 0,
+          committedIssues: 0,
+        },
+      });
+
+      await prisma.issue.create({
+        data: {
+          key: "REP-BACKDATED",
+          number: 301,
+          title: "Backfilled issue",
+          type: "TASK",
+          storyPoints: 4,
+          statusId: todoStatus.id,
+          reporterId: leadUser.id,
+          projectId: project.id,
+          sprintId: backdatedSprint.id,
+        },
+      });
+
+      // Trigger auto-backfill via /burndown
+      await request(app)
+        .get(`/api/projects/${project.key}/sprints/${backdatedSprint.id}/burndown`)
+        .set("Authorization", `Bearer ${memberToken}`);
+
+      // The backfilled event got createdAt = sprint.createdAt (2026-10-25).
+      // Since 2026-10-25 > 2026-10-20 23:59:59.999 WIB, it is treated as scope added
+      const reportRes = await request(app)
+        .get(`/api/projects/${project.key}/sprints/${backdatedSprint.id}/report`)
+        .set("Authorization", `Bearer ${memberToken}`);
+
+      expect(reportRes.body.summary.scopeAddedPoints).toBe(4);
+      expect(reportRes.body.summary.committedPoints).toBe(0);
+    });
+  });
 });

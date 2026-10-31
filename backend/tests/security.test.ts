@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import request from "supertest";
+import jwt from "jsonwebtoken";
 import { app } from "../src/app.js";
 import { prisma } from "../src/lib/prisma.js";
 import { generateToken } from "../src/lib/jwt.js";
@@ -366,14 +367,74 @@ describe("Backend Security and Permissions Integration Tests", () => {
   });
 
   describe("6. Demo Login Security", () => {
-    it("returns 404 when demo-login is disabled or in production", async () => {
-      const prevEnv = process.env.DEMO_MODE;
-      process.env.DEMO_MODE = "false";
+    let originalDemoLogin: string | undefined;
 
+    beforeEach(() => {
+      originalDemoLogin = process.env.ENABLE_DEMO_LOGIN;
+    });
+
+    afterEach(() => {
+      if (originalDemoLogin !== undefined) {
+        process.env.ENABLE_DEMO_LOGIN = originalDemoLogin;
+      } else {
+        delete process.env.ENABLE_DEMO_LOGIN;
+      }
+    });
+
+    it("returns 404 when demo-login is disabled (ENABLE_DEMO_LOGIN is not true)", async () => {
+      const prevEnv = process.env.ENABLE_DEMO_LOGIN;
+      try {
+        process.env.ENABLE_DEMO_LOGIN = "false";
+        const res = await request(app).post("/api/auth/demo-login");
+        expect(res.status).toBe(404);
+      } finally {
+        if (prevEnv !== undefined) {
+          process.env.ENABLE_DEMO_LOGIN = prevEnv;
+        } else {
+          delete process.env.ENABLE_DEMO_LOGIN;
+        }
+      }
+    });
+
+    it("returns 200 and auth payload when ENABLE_DEMO_LOGIN is 'true'", async () => {
+      const prevEnv = process.env.ENABLE_DEMO_LOGIN;
+      try {
+        process.env.ENABLE_DEMO_LOGIN = "true";
+        const res = await request(app).post("/api/auth/demo-login");
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty("token");
+        expect(res.body.user).toHaveProperty("email", "alex.lead@jira-lite.local");
+      } finally {
+        if (prevEnv !== undefined) {
+          process.env.ENABLE_DEMO_LOGIN = prevEnv;
+        } else {
+          delete process.env.ENABLE_DEMO_LOGIN;
+        }
+      }
+    });
+
+    it("returns 404 when ENABLE_DEMO_LOGIN is 'TRUE' (case-sensitive check)", async () => {
+      process.env.ENABLE_DEMO_LOGIN = "TRUE";
       const res = await request(app).post("/api/auth/demo-login");
       expect(res.status).toBe(404);
+    });
 
-      process.env.DEMO_MODE = prevEnv;
+    it("returns 404 when ENABLE_DEMO_LOGIN is '1'", async () => {
+      process.env.ENABLE_DEMO_LOGIN = "1";
+      const res = await request(app).post("/api/auth/demo-login");
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 404 when ENABLE_DEMO_LOGIN is empty string", async () => {
+      process.env.ENABLE_DEMO_LOGIN = "";
+      const res = await request(app).post("/api/auth/demo-login");
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 404 when ENABLE_DEMO_LOGIN is unset (undefined)", async () => {
+      delete process.env.ENABLE_DEMO_LOGIN;
+      const res = await request(app).post("/api/auth/demo-login");
+      expect(res.status).toBe(404);
     });
   });
 
@@ -440,6 +501,178 @@ describe("Backend Security and Permissions Integration Tests", () => {
         where: { key: toDeleteProject.key },
       });
       expect(check).toBeNull();
+    });
+  });
+
+  describe("8. Demo Account Limitations & Token Expiration", () => {
+    let originalDemoLogin: string | undefined;
+    let demoToken: string;
+    let demoTestProject: any;
+    let otherUser: any;
+
+    beforeAll(async () => {
+      // Ensure demo user exists with password demo12345 and obtain demo token
+      process.env.ENABLE_DEMO_LOGIN = "true";
+      const demoRes = await request(app)
+        .post("/api/auth/demo-login")
+        .set("x-test-bypass-rate-limit", "true");
+      demoToken = demoRes.body.token;
+
+      // Create an additional regular user to test member actions
+      otherUser = await prisma.user.create({
+        data: {
+          name: "Other User",
+          email: `other-${Date.now()}@test.local`,
+          passwordHash: "dummy",
+        },
+      });
+
+      // Create a test project where demo user has ADMIN membership
+      demoTestProject = await prisma.project.create({
+        data: {
+          name: "Demo Restricted Project",
+          key: "DMRES",
+          leadId: demoRes.body.user.id,
+          members: {
+            create: [
+              { userId: demoRes.body.user.id, role: "ADMIN" },
+              { userId: otherUser.id, role: "MEMBER" },
+            ],
+          },
+        },
+      });
+    });
+
+    beforeEach(() => {
+      originalDemoLogin = process.env.ENABLE_DEMO_LOGIN;
+    });
+
+    afterEach(() => {
+      if (originalDemoLogin !== undefined) {
+        process.env.ENABLE_DEMO_LOGIN = originalDemoLogin;
+      } else {
+        delete process.env.ENABLE_DEMO_LOGIN;
+      }
+    });
+
+    it("issues demo token with 1 hour expiry (3600s) and isDemo claim via POST /api/auth/demo-login", async () => {
+      process.env.ENABLE_DEMO_LOGIN = "true";
+      const res = await request(app)
+        .post("/api/auth/demo-login")
+        .set("x-test-bypass-rate-limit", "true");
+      expect(res.status).toBe(200);
+      const decoded = jwt.decode(res.body.token) as any;
+      expect(decoded.isDemo).toBe(true);
+      expect(decoded.exp - decoded.iat).toBe(3600);
+    });
+
+    it("issues regular token with 7 days expiry without isDemo claim via POST /api/auth/login", async () => {
+      const regEmail = `regular-${Date.now()}@test.local`;
+      await request(app)
+        .post("/api/auth/register")
+        .set("x-test-bypass-rate-limit", "true")
+        .send({ name: "Reg User", email: regEmail, password: "password123" });
+
+      const res = await request(app)
+        .post("/api/auth/login")
+        .set("x-test-bypass-rate-limit", "true")
+        .send({ email: regEmail, password: "password123" });
+
+      expect(res.status).toBe(200);
+      const decoded = jwt.decode(res.body.token) as any;
+      expect(decoded.isDemo).toBeUndefined();
+      expect(decoded.exp - decoded.iat).toBe(7 * 24 * 3600);
+    });
+
+    it("issues 1h token with isDemo: true when demo user logs in via POST /api/auth/login with ENABLE_DEMO_LOGIN=true", async () => {
+      process.env.ENABLE_DEMO_LOGIN = "true";
+      const res = await request(app)
+        .post("/api/auth/login")
+        .set("x-test-bypass-rate-limit", "true")
+        .send({ email: "alex.lead@jira-lite.local", password: "demo12345" });
+
+      expect(res.status).toBe(200);
+      const decoded = jwt.decode(res.body.token) as any;
+      expect(decoded.isDemo).toBe(true);
+      expect(decoded.exp - decoded.iat).toBe(3600);
+    });
+
+    it("issues standard 7d token without isDemo when demo user logs in via POST /api/auth/login with ENABLE_DEMO_LOGIN=false", async () => {
+      process.env.ENABLE_DEMO_LOGIN = "false";
+      const res = await request(app)
+        .post("/api/auth/login")
+        .set("x-test-bypass-rate-limit", "true")
+        .send({ email: "alex.lead@jira-lite.local", password: "demo12345" });
+
+      expect(res.status).toBe(200);
+      const decoded = jwt.decode(res.body.token) as any;
+      expect(decoded.isDemo).toBeUndefined();
+      expect(decoded.exp - decoded.iat).toBe(7 * 24 * 3600);
+    });
+
+    it("blocks demo user from deleting project DELETE /api/projects/:key with 403", async () => {
+      const res = await request(app)
+        .delete(`/api/projects/${demoTestProject.key}`)
+        .set("Authorization", `Bearer ${demoToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk menghapus project");
+    });
+
+    it("blocks demo user from adding member POST /api/projects/:key/members with 403", async () => {
+      const newCandidate = await prisma.user.create({
+        data: {
+          name: "Candidate User",
+          email: `candidate-${Date.now()}@test.local`,
+          passwordHash: "dummy",
+        },
+      });
+
+      const res = await request(app)
+        .post(`/api/projects/${demoTestProject.key}/members`)
+        .set("Authorization", `Bearer ${demoToken}`)
+        .send({ userId: newCandidate.id, role: "MEMBER" });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk menambah anggota");
+    });
+
+    it("blocks demo user from changing member role PATCH /api/projects/:key/members/:userId with 403", async () => {
+      const res = await request(app)
+        .patch(`/api/projects/${demoTestProject.key}/members/${otherUser.id}`)
+        .set("Authorization", `Bearer ${demoToken}`)
+        .send({ role: "ADMIN" });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk mengubah peran anggota");
+    });
+
+    it("blocks demo user from removing member DELETE /api/projects/:key/members/:userId with 403", async () => {
+      const res = await request(app)
+        .delete(`/api/projects/${demoTestProject.key}/members/${otherUser.id}`)
+        .set("Authorization", `Bearer ${demoToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk mengeluarkan anggota");
+    });
+
+    it("blocks demo user from searching available users GET /api/projects/:key/available-users with 403", async () => {
+      const res = await request(app)
+        .get(`/api/projects/${demoTestProject.key}/available-users`)
+        .set("Authorization", `Bearer ${demoToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk melihat daftar pengguna");
+    });
+
+    it("allows demo user to perform normal project viewing operations (200)", async () => {
+      const res = await request(app)
+        .get(`/api/projects/${demoTestProject.key}`)
+        .set("Authorization", `Bearer ${demoToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.project).toBeDefined();
+      expect(res.body.project.key).toBe(demoTestProject.key);
     });
   });
 });
