@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
 import { notifyUser } from "../lib/notifications.js";
-import { computeBurndown, classifySprintIssues, computeAgileSprintMetrics } from "../lib/burndown.js";
+import { computeBurndown, classifySprintIssues, computeAgileSprintMetrics, BurndownResult } from "../lib/burndown.js";
 import { isEligibleForReporting, recordIssueEvent } from "../lib/issueEvents.js";
 
 const router = Router();
@@ -768,15 +768,15 @@ router.get(
         return;
       }
 
-      // Fetch burndown data for mini-burndown preview
+      // Fetch issue events for reporting & burndown
       const events = await prisma.issueEvent.findMany({
         where: { sprintId: sprint.id },
         orderBy: { createdAt: "asc" },
       });
-      const miniBurndown = computeBurndown(events, sprint, "points");
 
       // If sprint is CLOSED: read from frozen SprintIssueResult
       if (sprint.state === "CLOSED" && sprint.issueResults.length > 0) {
+        const miniBurndown = computeBurndown(events, sprint, "points");
         const completedList = sprint.issueResults
           .filter((r) => r.outcome === "COMPLETED")
           .map((r) => ({
@@ -862,26 +862,66 @@ router.get(
       // Live Preview for ACTIVE or FUTURE sprint
       const eligibleIssues = sprint.issues.filter((i) => isEligibleForReporting(i.type));
 
-      const classification = classifySprintIssues({
+      const metrics = computeAgileSprintMetrics({
         sprint,
         events,
         eligibleIssues,
+        metric: "points",
       });
 
       const {
-        committedPoints,
-        committedIssuesCount: committedIssues,
-        completedPoints,
+        summary,
         completedIssuesList: completed,
         notCompletedIssuesList: notCompleted,
         addedMidSprintIssuesList: addedMidSprint,
-        scopeAddedPoints,
-        scopeAddedIssuesCount: scopeAddedIssues,
-        carriedOverPoints,
+        removedFromSprintIssuesList,
         isIssueAddedMidSprint,
-      } = classification;
+      } = metrics;
 
-      const completionRate = committedPoints > 0 ? Math.round((completedPoints / committedPoints) * 100) : null;
+      // Query metadata for removed issues if any
+      const removedIssueIds = removedFromSprintIssuesList.map((r) => r.issueId);
+      const removedIssuesDb = removedIssueIds.length > 0
+        ? await prisma.issue.findMany({
+            where: { id: { in: removedIssueIds } },
+            include: {
+              status: true,
+              assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+            },
+          })
+        : [];
+      const removedIssuesDbMap = new Map(removedIssuesDb.map((i) => [i.id, i]));
+
+      const removedFromSprintIssues = removedFromSprintIssuesList.map((r) => {
+        const dbIssue = removedIssuesDbMap.get(r.issueId);
+        return {
+          id: r.issueId,
+          key: dbIssue?.key ?? "",
+          title: dbIssue?.title ?? "",
+          type: dbIssue?.type ?? "STORY",
+          priority: dbIssue?.priority ?? "MEDIUM",
+          storyPoints: r.storyPoints,
+          status: dbIssue?.status ?? null,
+          assignee: dbIssue?.assignee ?? null,
+        };
+      });
+
+      const miniBurndown: BurndownResult = {
+        sprint: {
+          id: sprint.id,
+          name: sprint.name,
+          state: sprint.state,
+        },
+        metric: "points",
+        unestimated: metrics.unestimated,
+        summary: {
+          committed: summary.committed,
+          completed: summary.completed,
+          remaining: summary.remaining,
+          scopeAdded: summary.scopeAdded,
+          removed: summary.removed,
+        },
+        days: metrics.days,
+      };
 
       res.json({
         sprint: {
@@ -896,15 +936,17 @@ router.get(
           retroNotes: sprint.retroNotes,
         },
         summary: {
-          committedPoints,
-          committedIssues,
-          completedPoints,
-          completedIssues: completed.length,
-          completionRate,
-          scopeAddedPoints,
-          scopeAddedIssues,
-          carriedOverPoints,
-          carriedOverIssues: notCompleted.length,
+          committedPoints: summary.committedPoints,
+          committedIssues: summary.committedIssues,
+          completedPoints: summary.completedPoints,
+          completedIssues: summary.completedIssues,
+          completionRate: summary.completionRate,
+          scopeAddedPoints: summary.scopeAddedPoints,
+          scopeAddedIssues: summary.scopeAddedIssues,
+          removedPoints: summary.removedPoints,
+          removedIssues: summary.removedIssues,
+          carriedOverPoints: summary.carriedOverPoints,
+          carriedOverIssues: summary.carriedOverIssues,
         },
         completedIssues: completed.map((i) => ({
           id: i.id,
@@ -941,6 +983,7 @@ router.get(
           assignee: i.assignee,
           outcome: i.status.category === "DONE" ? "COMPLETED" : "IN_PROGRESS",
         })),
+        removedFromSprintIssues,
         miniBurndown,
         isPreview: true,
       });

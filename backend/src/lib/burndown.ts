@@ -101,6 +101,7 @@ export interface AgileSprintMetricsResult<T = any> {
   addedMidSprintIssuesList: T[];
   completedIssuesList: T[];
   notCompletedIssuesList: T[];
+  removedFromSprintIssuesList: Array<{ issueId: string; storyPoints: number }>;
   isIssueAddedMidSprint: (issueId: string) => boolean;
 }
 
@@ -218,6 +219,9 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
   let cumulativeScopeAddedIssues = 0;
   let cumulativeRemovedIssues = 0;
 
+  const inSprintOnDay0 = new Set<string>();
+  const addedAfterDay0 = new Set<string>();
+
   let eventIdx = 0;
   const days: BurndownDayResult[] = [];
 
@@ -241,6 +245,9 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
 
       switch (e.eventType) {
         case "ADDED_TO_SPRINT":
+          if (idx > 0) {
+            addedAfterDay0.add(e.issueId);
+          }
           issuesMap.set(e.issueId, {
             inSprint: true,
             points: e.points !== undefined && e.points !== null ? e.points : (existing?.points ?? 0),
@@ -307,6 +314,7 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
         if (st.inSprint) {
           day0CommittedPoints += st.points || 0;
           day0CommittedIssues += 1;
+          inSprintOnDay0.add(id);
           prevDayPointsMap.set(id, st.points || 0);
           prevDayInSprintMap.set(id, 1);
         } else {
@@ -407,20 +415,24 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
       ? sprint.committedIssues
       : day0CommittedIssues;
   } else {
-    // FUTURE
+    // FUTURE: committed, scopeAdded, removed are all 0
     committedPoints = 0;
     committedIssues = 0;
+    cumulativeScopeAddedPoints = 0;
+    cumulativeScopeAddedIssues = 0;
+    cumulativeRemovedPoints = 0;
+    cumulativeRemovedIssues = 0;
   }
 
-  const completedPoints = evalActiveIssues
+  const completedPoints = sprint.state === "FUTURE" ? 0 : evalActiveIssues
     .filter((i) => i.category === "DONE")
     .reduce((sum, i) => sum + (i.points || 0), 0);
-  const completedIssues = evalActiveIssues.filter((i) => i.category === "DONE").length;
+  const completedIssues = sprint.state === "FUTURE" ? 0 : evalActiveIssues.filter((i) => i.category === "DONE").length;
 
-  const carriedOverPoints = evalActiveIssues
+  const carriedOverPoints = sprint.state === "FUTURE" ? 0 : evalActiveIssues
     .filter((i) => i.category !== "DONE")
     .reduce((sum, i) => sum + (i.points || 0), 0);
-  const carriedOverIssues = evalActiveIssues.filter((i) => i.category !== "DONE").length;
+  const carriedOverIssues = sprint.state === "FUTURE" ? 0 : evalActiveIssues.filter((i) => i.category !== "DONE").length;
 
   const committed = metric === "points" ? committedPoints : committedIssues;
   const scopeAdded = metric === "points" ? cumulativeScopeAddedPoints : cumulativeScopeAddedIssues;
@@ -428,7 +440,20 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
   const completed = metric === "points" ? completedPoints : completedIssues;
   const remaining = metric === "points" ? carriedOverPoints : carriedOverIssues;
 
-  const completionRate = committedPoints > 0 ? Math.round((completedPoints / committedPoints) * 100) : null;
+  const completionRate = sprint.state === "FUTURE" ? null : (committedPoints > 0 ? Math.round((completedPoints / committedPoints) * 100) : null);
+
+  // Removed issues: tickets in sprint on Day 0 or added after Day 0, currently not in sprint
+  const removedFromSprintIssuesList: Array<{ issueId: string; storyPoints: number }> = [];
+  if (sprint.state !== "FUTURE") {
+    for (const [id, st] of issuesMap.entries()) {
+      if ((inSprintOnDay0.has(id) || addedAfterDay0.has(id)) && !st.inSprint) {
+        removedFromSprintIssuesList.push({
+          issueId: id,
+          storyPoints: st.points || 0,
+        });
+      }
+    }
+  }
 
   // Earliest ADDED_TO_SPRINT timestamp map for issue classification
   const earliestAddedMap = new Map<string, number>();
@@ -487,6 +512,7 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
     addedMidSprintIssuesList,
     completedIssuesList,
     notCompletedIssuesList,
+    removedFromSprintIssuesList,
     isIssueAddedMidSprint,
   };
 }
