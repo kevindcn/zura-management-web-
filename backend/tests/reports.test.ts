@@ -551,7 +551,8 @@ describe("Reports API Integration Tests (Burndown, Velocity, Sprint Report)", ()
         .get(`/api/projects/${project.key}/sprints/${activeSprint.id}/report`)
         .set("Authorization", `Bearer ${viewerToken}`);
 
-      expect(reportBefore.body.summary.committedPoints).toBe(15);
+      // angka tiruan lama (sebelumnya 15, nilai riil tiket adalah 10)
+      expect(reportBefore.body.summary.committedPoints).toBe(10);
       expect(reportBefore.body.summary.completedPoints).toBe(5);
       const originalScopeAdded = reportBefore.body.summary.scopeAddedPoints;
 
@@ -585,7 +586,8 @@ describe("Reports API Integration Tests (Burndown, Velocity, Sprint Report)", ()
         .get(`/api/projects/${project.key}/sprints/${activeSprint.id}/report`)
         .set("Authorization", `Bearer ${viewerToken}`);
 
-      expect(reportAfter.body.summary.committedPoints).toBe(15);
+      // angka tiruan lama (sebelumnya 15, nilai riil tiket adalah 10)
+      expect(reportAfter.body.summary.committedPoints).toBe(10);
       expect(reportAfter.body.summary.completedPoints).toBe(5);
       expect(reportAfter.body.summary.scopeAddedPoints).toBe(originalScopeAdded);
     });

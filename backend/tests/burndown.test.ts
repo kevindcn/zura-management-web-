@@ -125,6 +125,8 @@ describe("Burndown Calculator (computeBurndown Unit Tests)", () => {
     const events: BurndownIssueEvent[] = [
       { issueId: "iss-1", eventType: "ADDED_TO_SPRINT", points: 8, category: "TO_DO", createdAt: "2026-11-01T02:00:00Z" },
       { issueId: "iss-2", eventType: "ADDED_TO_SPRINT", points: 1, category: "TO_DO", createdAt: "2026-11-01T02:00:00Z" },
+      { issueId: "iss-3", eventType: "ADDED_TO_SPRINT", points: 2, category: "TO_DO", createdAt: "2026-11-01T02:00:00Z" },
+      { issueId: "iss-4", eventType: "ADDED_TO_SPRINT", points: 3, category: "TO_DO", createdAt: "2026-11-01T02:00:00Z" },
       // Nov 2: iss-1 marked DONE
       { issueId: "iss-1", eventType: "STATUS_CHANGED", category: "DONE", previousCategory: "TO_DO", createdAt: "2026-11-02T04:00:00Z" },
     ];
@@ -132,9 +134,9 @@ describe("Burndown Calculator (computeBurndown Unit Tests)", () => {
     const result = computeBurndown(events, baseSprint, "issues", "2026-11-02");
 
     expect(result.summary.committed).toBe(4);
-    // On Nov 2: 1 issue done, 1 issue remaining (out of 2 in sprint)
+    // On Nov 2: 1 issue done, 3 remaining (out of 4 in sprint)
     expect(result.days[1].done).toBe(1);
-    expect(result.days[1].remaining).toBe(1);
+    expect(result.days[1].remaining).toBe(3);
   });
 
   it("handles sprint with zero events gracefully without crashing", () => {

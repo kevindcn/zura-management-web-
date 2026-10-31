@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
 import { notifyUser } from "../lib/notifications.js";
-import { computeBurndown, classifySprintIssues } from "../lib/burndown.js";
+import { computeBurndown, classifySprintIssues, computeAgileSprintMetrics } from "../lib/burndown.js";
 import { isEligibleForReporting, recordIssueEvent } from "../lib/issueEvents.js";
 
 const router = Router();
@@ -620,8 +620,25 @@ router.get(
         });
       }
 
-      const burndown = computeBurndown(events, sprint, metric);
-      res.json(burndown);
+      const burndown = computeAgileSprintMetrics({
+        sprint,
+        events,
+        metric,
+        eligibleIssues: sprint.issues,
+      });
+      res.json({
+        sprint: burndown.sprint,
+        metric: burndown.metric,
+        unestimated: burndown.unestimated,
+        summary: {
+          committed: burndown.summary.committed,
+          completed: burndown.summary.completed,
+          remaining: burndown.summary.remaining,
+          scopeAdded: burndown.summary.scopeAdded,
+          removed: burndown.summary.removed,
+        },
+        days: burndown.days,
+      });
     } catch (err) {
       next(err);
     }
