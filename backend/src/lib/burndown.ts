@@ -194,7 +194,15 @@ export function computeAgileSprintMetrics<T extends { id: string; type?: string;
 
   const dateList = generateDateRange(startDateStr, endDateStr);
   const totalDays = dateList.length;
-  const todayJakarta = referenceTodayJakarta || getJakartaDateString(new Date());
+  const currentWallClockJakarta = getJakartaDateString(new Date());
+  let latestEventDateStr = currentWallClockJakarta;
+  if (events.length > 0) {
+    const sortedRaw = [...events].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    latestEventDateStr = getJakartaDateString(sortedRaw[sortedRaw.length - 1].createdAt);
+  }
+  const todayJakarta = referenceTodayJakarta || (latestEventDateStr > currentWallClockJakarta ? latestEventDateStr : currentWallClockJakarta);
 
   // 3. Evaluation cut-off date:
   // For ACTIVE sprints, evaluate up to today (or end date if today > end date, or start date if today < start date)

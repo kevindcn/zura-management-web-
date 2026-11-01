@@ -895,11 +895,11 @@ router.get(
           metric: "points",
           unestimated: metrics.unestimated,
           summary: {
-            committed: metrics.summary.committed,
-            completed: metrics.summary.completed,
-            remaining: metrics.summary.remaining,
-            scopeAdded: metrics.summary.scopeAdded,
-            removed: metrics.summary.removed,
+            committed: committedPoints,
+            completed: completedPoints,
+            remaining: carriedOverPoints,
+            scopeAdded: metrics.summary.scopeAddedPoints,
+            removed: metrics.summary.removedPoints,
           },
           days: metrics.days,
         };
