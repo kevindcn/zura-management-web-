@@ -12,6 +12,20 @@ interface AuthState {
   initialize: () => void;
 }
 
+let isSessionExpiredHandled = false;
+
+export function isSessionExpired(): boolean {
+  return isSessionExpiredHandled;
+}
+
+export function markSessionExpired(): void {
+  isSessionExpiredHandled = true;
+}
+
+export function resetSessionExpiredGuard(): void {
+  isSessionExpiredHandled = false;
+}
+
 function getStoredToken(): string | null {
   return localStorage.getItem("zura_token") || localStorage.getItem("jira_token");
 }
@@ -27,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
 
   setAuth: (user, token) => {
+    resetSessionExpiredGuard();
     localStorage.setItem("zura_token", token);
     localStorage.setItem("zura_user", JSON.stringify(user));
     set({ user, token, isAuthenticated: true, isLoading: false });
@@ -59,10 +74,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     }
 
+    const isAuthenticated = !!token && !!user;
+    if (isAuthenticated) {
+      resetSessionExpiredGuard();
+    }
+
     set({
       token,
       user,
-      isAuthenticated: !!token && !!user,
+      isAuthenticated,
       isLoading: false,
     });
   },

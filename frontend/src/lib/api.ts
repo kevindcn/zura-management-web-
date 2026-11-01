@@ -16,6 +16,51 @@ import {
   RetroNotes,
 } from "../types";
 import { useToastStore } from "../store/toast";
+import {
+  useAuthStore,
+  isSessionExpired,
+  markSessionExpired,
+  resetSessionExpiredGuard,
+} from "../store/auth";
+
+export { isSessionExpired, resetSessionExpiredGuard };
+
+export class SessionExpiredError extends Error {
+  readonly isSessionExpired = true;
+  readonly status = 401;
+
+  constructor(message = "Sesi Anda berakhir, silakan masuk kembali.") {
+    super(message);
+    this.name = "SessionExpiredError";
+  }
+}
+
+export function isSessionExpiredError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  return (
+    (err as any).isSessionExpired === true ||
+    (err as any).name === "SessionExpiredError" ||
+    (err as any).status === 401
+  );
+}
+
+export function handleSessionExpired(): void {
+  // Thorough cleanup: clear all tokens and user info from storage
+  localStorage.removeItem("zura_token");
+  localStorage.removeItem("zura_user");
+  localStorage.removeItem("jira_token");
+  localStorage.removeItem("jira_user");
+
+  // Reset Zustand auth state immediately and synchronously
+  useAuthStore.getState().logout();
+
+  // Debounced once-only notification per 401 wave
+  if (!isSessionExpired()) {
+    markSessionExpired();
+    useToastStore.getState().error("Your session has expired. Please log in again.");
+    window.dispatchEvent(new CustomEvent("jira_session_expired"));
+  }
+}
 
 const BASE_URL = "/api";
 
@@ -51,10 +96,8 @@ export async function apiRequest<T>(
       endpoint.startsWith("/auth/demo-login");
 
     if (!isAuthRoute) {
-      localStorage.removeItem("jira_token");
-      localStorage.removeItem("zura_token");
-      window.dispatchEvent(new CustomEvent("jira_session_expired"));
-      throw new Error("Sesi Anda berakhir, silakan masuk kembali.");
+      handleSessionExpired();
+      throw new SessionExpiredError();
     }
 
     throw new Error(data?.message || "Email atau kata sandi tidak valid.");
@@ -74,21 +117,27 @@ export async function apiRequest<T>(
 
 export const api = {
   auth: {
-    login: (credentials: { email: string; password: string }) =>
-      apiRequest<{ token: string; user: User }>("/auth/login", {
+    login: (credentials: { email: string; password: string }) => {
+      resetSessionExpiredGuard();
+      return apiRequest<{ token: string; user: User }>("/auth/login", {
         method: "POST",
         body: JSON.stringify(credentials),
-      }),
-    register: (userData: { name: string; email: string; password: string }) =>
-      apiRequest<{ token: string; user: User }>("/auth/register", {
+      });
+    },
+    register: (userData: { name: string; email: string; password: string }) => {
+      resetSessionExpiredGuard();
+      return apiRequest<{ token: string; user: User }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(userData),
-      }),
+      });
+    },
     me: () => apiRequest<{ user: User }>("/auth/me"),
-    demoLogin: () =>
-      apiRequest<{ token: string; user: User }>("/auth/demo-login", {
+    demoLogin: () => {
+      resetSessionExpiredGuard();
+      return apiRequest<{ token: string; user: User }>("/auth/demo-login", {
         method: "POST",
-      }),
+      });
+    },
   },
 
   projects: {
@@ -275,6 +324,16 @@ export const api = {
     });
 
     const data = await response.json().catch(() => null);
+
+    if (response.status === 401) {
+      handleSessionExpired();
+      throw new SessionExpiredError();
+    }
+
+    if (response.status === 403) {
+      useToastStore.getState().error("Anda tidak punya izin untuk aksi ini");
+      throw new Error(data?.message || "Anda tidak punya izin untuk aksi ini");
+    }
 
     if (!response.ok) {
       throw new Error(data?.message || `Upload failed (${response.status})`);

@@ -3,7 +3,7 @@ import { useAuthStore } from "./store/auth";
 import { useToastStore } from "./store/toast";
 import { useProjectStore } from "./store/project";
 import { can, getUserRole } from "./lib/permissions";
-import { api } from "./lib/api";
+import { api, isSessionExpired, isSessionExpiredError } from "./lib/api";
 import { Project, Issue, Status } from "./types";
 import { AuthPage } from "./pages/AuthPage";
 import { BoardPage } from "./pages/BoardPage";
@@ -51,12 +51,11 @@ export function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       logout();
-      toast.error("Your session has expired. Please log in again.");
     };
 
     window.addEventListener("jira_session_expired", handleSessionExpired);
     return () => window.removeEventListener("jira_session_expired", handleSessionExpired);
-  }, [logout, toast]);
+  }, [logout]);
 
   // Load Projects once authenticated
   const loadProjects = async (autoSelectKey?: string) => {
@@ -77,6 +76,9 @@ export function App() {
         setIssues([]);
       }
     } catch (err) {
+      if (isSessionExpired() || isSessionExpiredError(err) || !useAuthStore.getState().isAuthenticated) {
+        return;
+      }
       console.error("Failed to load projects:", err);
       toast.error("Failed to load projects list.");
     }
@@ -102,6 +104,9 @@ export function App() {
       setIssues(issuesRes.issues);
       setActiveView("board");
     } catch (err) {
+      if (isSessionExpired() || isSessionExpiredError(err) || !useAuthStore.getState().isAuthenticated) {
+        return;
+      }
       console.error("Failed to load project details:", err);
       toast.error(`Failed to load project details for ${key}.`);
     } finally {

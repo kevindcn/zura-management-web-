@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Project, Sprint, BurndownResponse, VelocityResponse, SprintReportResponse, IssueType, PriorityLevel } from "../types";
-import { api } from "../lib/api";
+import { api, isSessionExpired, isSessionExpiredError } from "../lib/api";
 import { useToastStore } from "../store/toast";
 import { can, getUserRole } from "../lib/permissions";
 import { useAuthStore } from "../store/auth";
@@ -118,6 +118,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
         const data = await api.reports.burndown(project.key, selectedSprintId, burndownMetric);
         if (isMounted) setBurndownData(data);
       } catch (err: any) {
+        if (isSessionExpired() || isSessionExpiredError(err)) return;
         toast.error(err.message || "Failed to load burndown data");
       } finally {
         if (isMounted) setLoadingBurndown(false);
@@ -139,6 +140,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
         const data = await api.reports.velocity(project.key, velocitySprintsCount);
         if (isMounted) setVelocityData(data);
       } catch (err: any) {
+        if (isSessionExpired() || isSessionExpiredError(err)) return;
         toast.error(err.message || "Failed to load velocity data");
       } finally {
         if (isMounted) setLoadingVelocity(false);
@@ -165,6 +167,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
           setRetroActionItems(data.sprint.retroNotes?.actionItems || "");
         }
       } catch (err: any) {
+        if (isSessionExpired() || isSessionExpiredError(err)) return;
         toast.error(err.message || "Failed to load sprint report");
       } finally {
         if (isMounted) setLoadingReport(false);

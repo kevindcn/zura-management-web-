@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Project, Issue, Sprint, User, IssueType, PriorityLevel } from "../types";
-import { api } from "../lib/api";
+import { api, isSessionExpired, isSessionExpiredError } from "../lib/api";
 import { useToastStore } from "../store/toast";
 import { useAuthStore } from "../store/auth";
 import { can, getUserRole } from "../lib/permissions";
@@ -126,6 +126,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
       const res = await api.sprints.list(project.key);
       setSprints(res.sprints);
     } catch (err: any) {
+      if (isSessionExpired() || isSessionExpiredError(err)) return;
       console.error("Failed to load sprints:", err);
       toast.error("Failed to load sprints list.");
     } finally {

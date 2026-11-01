@@ -25,6 +25,14 @@ interface ToastStore {
 export const useToastStore = create<ToastStore>((set, get) => ({
   toasts: [],
   addToast: (toast) => {
+    // Prevent duplicate toast messages of the same type while already displayed
+    const existing = get().toasts.find(
+      (t) => t.message === toast.message && t.type === toast.type
+    );
+    if (existing) {
+      return existing.id;
+    }
+
     const id = "toast_" + Math.random().toString(36).slice(2, 9);
     const duration = toast.duration ?? (toast.action ? 6000 : 4000);
 
