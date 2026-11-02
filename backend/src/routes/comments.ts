@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
+import { blockDemo } from "../middleware/blockDemo.js";
 import { notifyUser } from "../lib/notifications.js";
 
 const router = Router();
@@ -159,6 +160,7 @@ router.post(
 router.delete(
   "/comments/:id",
   authenticateToken,
+  blockDemo,
   requirePermission("comment:delete:own"),
   async (req: AuthRequest, res: Response, next) => {
     try {

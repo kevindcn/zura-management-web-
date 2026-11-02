@@ -154,9 +154,17 @@ export function validateMemberMutation(params: MemberValidationParams): {
 }
 
 /**
+ * Constant email for the predefined demo account.
+ */
+export const DEMO_EMAIL = "alex.lead@jira-lite.local";
+
+/**
  * Check if the authenticated user has a demo session based strictly on the JWT isDemo claim.
  */
 export function isDemoUser(user?: { isDemo?: boolean } | null): boolean {
   return Boolean(user?.isDemo);
 }
+
+export { blockDemo } from "../middleware/blockDemo.js";
+
 

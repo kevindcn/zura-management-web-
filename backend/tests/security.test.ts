@@ -584,30 +584,35 @@ describe("Backend Security and Permissions Integration Tests", () => {
       expect(decoded.exp - decoded.iat).toBe(7 * 24 * 3600);
     });
 
-    it("issues 1h token with isDemo: true when demo user logs in via POST /api/auth/login with ENABLE_DEMO_LOGIN=true", async () => {
+    it("rejects regular login with alex.lead@jira-lite.local (401) when ENABLE_DEMO_LOGIN=true, while /demo-login issues 1h demo token", async () => {
       process.env.ENABLE_DEMO_LOGIN = "true";
       const res = await request(app)
         .post("/api/auth/login")
         .set("x-test-bypass-rate-limit", "true")
         .send({ email: "alex.lead@jira-lite.local", password: "demo12345" });
 
-      expect(res.status).toBe(200);
-      const decoded = jwt.decode(res.body.token) as any;
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("Invalid email or password");
+
+      const demoRes = await request(app)
+        .post("/api/auth/demo-login")
+        .set("x-test-bypass-rate-limit", "true");
+
+      expect(demoRes.status).toBe(200);
+      const decoded = jwt.decode(demoRes.body.token) as any;
       expect(decoded.isDemo).toBe(true);
       expect(decoded.exp - decoded.iat).toBe(3600);
     });
 
-    it("issues standard 7d token without isDemo when demo user logs in via POST /api/auth/login with ENABLE_DEMO_LOGIN=false", async () => {
+    it("rejects regular login with alex.lead@jira-lite.local (401) when ENABLE_DEMO_LOGIN=false", async () => {
       process.env.ENABLE_DEMO_LOGIN = "false";
       const res = await request(app)
         .post("/api/auth/login")
         .set("x-test-bypass-rate-limit", "true")
         .send({ email: "alex.lead@jira-lite.local", password: "demo12345" });
 
-      expect(res.status).toBe(200);
-      const decoded = jwt.decode(res.body.token) as any;
-      expect(decoded.isDemo).toBeUndefined();
-      expect(decoded.exp - decoded.iat).toBe(7 * 24 * 3600);
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("Invalid email or password");
     });
 
     it("blocks demo user from deleting project DELETE /api/projects/:key with 403", async () => {

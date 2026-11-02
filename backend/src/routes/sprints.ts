@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
+import { blockDemo } from "../middleware/blockDemo.js";
+import { isDemoUser } from "../lib/permissions.js";
 import { notifyUser } from "../lib/notifications.js";
 import { computeBurndown, classifySprintIssues, computeAgileSprintMetrics, BurndownResult } from "../lib/burndown.js";
 import { isEligibleForReporting, recordIssueEvent } from "../lib/issueEvents.js";
@@ -309,6 +311,7 @@ router.post(
 router.post(
   "/projects/:key/sprints/:id/complete",
   authenticateToken,
+  blockDemo,
   requirePermission("sprint:manage"),
   async (req: AuthRequest, res: Response, next) => {
     try {
@@ -342,6 +345,11 @@ router.patch(
       const project = await findProject(req.params.key);
       const sprintId = req.params.id;
       const body = updateSprintSchema.parse(req.body);
+
+      if (body.state === "CLOSED" && isDemoUser(req.user)) {
+        res.status(403).json({ message: "Fitur ini dinonaktifkan di akun demo." });
+        return;
+      }
 
       if (!project) {
         res.status(404).json({ message: "Project tidak ditemukan" });
@@ -473,6 +481,7 @@ router.patch(
 router.delete(
   "/projects/:key/sprints/:id",
   authenticateToken,
+  blockDemo,
   requirePermission("sprint:manage"),
   async (req: AuthRequest, res: Response, next) => {
     try {

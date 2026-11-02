@@ -12,6 +12,7 @@ import notificationRoutes from "./routes/notifications.js";
 import savedViewRoutes from "./routes/savedViews.js";
 import uploadRoutes from "./routes/upload.js";
 import { errorHandler } from "./middleware/error.js";
+import { apiMutationRateLimiter } from "./middleware/rateLimiter.js";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 
@@ -21,6 +22,10 @@ if (!fs.existsSync(uploadsDir)) {
 
 export function createApp() {
   const app = express();
+
+  // Trust first proxy hop (e.g. reverse proxy / load balancer / ingress)
+  // Ensures req.ip and rate limiters receive the correct client IP from X-Forwarded-For
+  app.set("trust proxy", 1);
 
   // Parse allowed origins from FRONTEND_URL (supports comma-separated list)
   const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
@@ -45,8 +50,20 @@ export function createApp() {
     })
   );
 
-  // Serve static uploaded files
-  app.use("/uploads", express.static(uploadsDir));
+  // Serve static uploaded files with nosniff and download attachment for non-images
+  app.use(
+    "/uploads",
+    express.static(uploadsDir, {
+      setHeaders: (res, filePath) => {
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        const ext = path.extname(filePath).toLowerCase();
+        const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+        if (!imageExtensions.includes(ext)) {
+          res.setHeader("Content-Disposition", "attachment");
+        }
+      },
+    })
+  );
 
   // Generous limit for JSON and forms to support rich text and attachments
   app.use(express.json({ limit: "50mb" }));
@@ -77,6 +94,9 @@ export function createApp() {
       time: new Date().toISOString(),
     });
   });
+
+  // General mutation rate limiter for POST, PATCH, PUT, DELETE under /api
+  app.use("/api", apiMutationRateLimiter);
 
   // API Routes
   app.use("/api/auth", authRoutes);

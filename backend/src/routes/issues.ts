@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
+import { blockDemo } from "../middleware/blockDemo.js";
 import { getRandomLabelColor } from "./labels.js";
 import { notifyUser } from "../lib/notifications.js";
 import { isEligibleForReporting, recordIssueEvent } from "../lib/issueEvents.js";
@@ -980,6 +981,7 @@ router.patch(
 router.delete(
   "/issues/:key",
   authenticateToken,
+  blockDemo,
   requirePermission("issue:delete:own"),
   async (req: AuthRequest, res: Response, next) => {
     try {

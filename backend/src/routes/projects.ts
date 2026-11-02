@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
-import { validateMemberMutation, ALL_ROLES, isDemoUser } from "../lib/permissions.js";
+import { validateMemberMutation, ALL_ROLES, isDemoUser, blockDemo } from "../lib/permissions.js";
 import { notifyUser } from "../lib/notifications.js";
 import { memberActionRateLimiter } from "../middleware/rateLimiter.js";
 
@@ -73,7 +73,7 @@ router.get("/", authenticateToken, async (req: AuthRequest, res: Response, next)
 });
 
 // POST /api/projects - Create project + default statuses + owner member
-router.post("/", authenticateToken, async (req: AuthRequest, res: Response, next) => {
+router.post("/", authenticateToken, blockDemo, async (req: AuthRequest, res: Response, next) => {
   try {
     const { name, key, description } = createProjectSchema.parse({
       ...req.body,
@@ -205,7 +205,7 @@ router.get("/:key/activities", authenticateToken, requirePermission("project:vie
 });
 
 // PATCH /api/projects/:key - Update project details (name, description)
-router.patch("/:key", authenticateToken, requirePermission("project:settings"), async (req: AuthRequest, res: Response, next) => {
+router.patch("/:key", authenticateToken, blockDemo, requirePermission("project:settings"), async (req: AuthRequest, res: Response, next) => {
   try {
     const key = req.params.key.toUpperCase();
     const { name, description } = updateProjectSchema.parse(req.body);
@@ -683,6 +683,7 @@ router.patch(
 router.delete(
   "/:key/statuses/:statusId",
   authenticateToken,
+  blockDemo,
   requirePermission("issue:create"),
   async (req: AuthRequest, res: Response, next) => {
     try {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/permission.js";
+import { blockDemo } from "../middleware/blockDemo.js";
 
 const router = Router();
 
@@ -122,6 +123,7 @@ router.post(
 router.delete(
   "/projects/:key/labels/:id",
   authenticateToken,
+  blockDemo,
   requirePermission("label:manage"),
   async (req: AuthRequest, res: Response, next) => {
     try {

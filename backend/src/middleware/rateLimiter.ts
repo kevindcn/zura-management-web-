@@ -62,3 +62,24 @@ export const memberActionRateLimiter = createRateLimiter({
   max: 30,
   message: "Terlalu banyak permintaan perubahan anggota. Silakan tunggu 1 menit sebelum mencoba lagi.",
 });
+
+const mutatingMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
+
+// 120 requests per minute for data mutation methods (POST, PATCH, PUT, DELETE)
+const baseApiMutationLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: "Terlalu banyak permintaan perubahan data. Silakan tunggu 1 menit sebelum mencoba lagi.",
+});
+
+export const apiMutationRateLimiter = (req: Request, res: Response, next: NextFunction): void => {
+  if (!mutatingMethods.has(req.method)) {
+    return next();
+  }
+  // In test environment, bypass rate limits to avoid failing existing test suites unless explicitly requested
+  if (process.env.NODE_ENV === "test" && !req.headers["x-test-rate-limit"]) {
+    return next();
+  }
+  return baseApiMutationLimiter(req, res, next);
+};
+

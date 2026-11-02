@@ -1,10 +1,12 @@
 import { Router, Response } from "express";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { generateToken } from "../lib/jwt.js";
 import { authRateLimiter } from "../middleware/rateLimiter.js";
+import { DEMO_EMAIL } from "../lib/permissions.js";
 
 const router = Router();
 
@@ -61,6 +63,11 @@ router.post("/register", authRateLimiter, async (req, res, next) => {
 router.post("/login", authRateLimiter, async (req, res, next) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
+
+    if (email.toLowerCase() === DEMO_EMAIL.toLowerCase()) {
+      res.status(401).json({ message: "Invalid email or password" });
+      return;
+    }
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
@@ -130,14 +137,15 @@ router.post("/demo-login", authRateLimiter, async (req, res, next) => {
     }
 
     let demoUser = await prisma.user.findUnique({
-      where: { email: "alex.lead@jira-lite.local" },
+      where: { email: DEMO_EMAIL },
     });
 
     if (!demoUser) {
-      const passwordHash = await bcrypt.hash("demo12345", 10);
+      const randomSecret = crypto.randomBytes(32).toString("hex");
+      const passwordHash = await bcrypt.hash(randomSecret, 10);
       demoUser = await prisma.user.create({
         data: {
-          email: "alex.lead@jira-lite.local",
+          email: DEMO_EMAIL,
           name: "Alex Morgan",
           passwordHash,
           avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Alex%20Morgan&backgroundColor=0c66e4",
