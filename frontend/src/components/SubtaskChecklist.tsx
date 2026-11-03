@@ -158,7 +158,7 @@ export const SubtaskChecklist: React.FC<SubtaskChecklistProps> = ({
                   title={isDone ? "Mark as incomplete" : "Mark as completed"}
                 >
                   {isToggling ? (
-                    <Loader2 size={15} className="animate-spin text-jira-blue" />
+                    <Loader2 size={15} className="animate-spin text-jira-blue dark:text-blue-400" />
                   ) : isDone ? (
                     <div className="w-4 h-4 rounded bg-emerald-600 text-white flex items-center justify-center shadow-xs">
                       <Check size={11} strokeWidth={3} />

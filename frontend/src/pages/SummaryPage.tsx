@@ -410,7 +410,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({
           <div className="flex items-center gap-1 -mb-px">
             <button
               onClick={() => onSwitchView("summary")}
-              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue transition-colors"
+              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue dark:border-blue-400 dark:text-blue-400 transition-colors"
               title="Project Summary (Active)"
             >
               <Globe size={14} />
@@ -502,7 +502,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="text-jira-blue hover:underline flex items-center gap-1 font-semibold text-xs ml-1 transition"
+            className="text-jira-blue dark:text-blue-400 hover:underline flex items-center gap-1 font-semibold text-xs ml-1 transition"
           >
             <X size={13} />
             <span>{t.common.clearFilter}</span>
@@ -654,11 +654,11 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({
 
                   {/* Centered Total Label - Clean, spacious, and non-overlapping */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-3 select-none">
-                    <span className="text-3xl font-extrabold text-jira-text leading-tight tracking-tight">
+                    <span className="text-3xl font-extrabold text-jira-text dark:text-white leading-tight tracking-tight">
                       {statusStats.total}
                     </span>
                     <span
-                      className="text-xs font-semibold text-slate-500 mt-1 max-w-[125px] truncate leading-normal"
+                      className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 max-w-[125px] truncate leading-normal"
                       title="Total work item..."
                     >
                       Total work item...
@@ -671,16 +671,16 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({
                   {statusStats.stats.map((s, idx) => (
                     <div
                       key={s.id}
-                      className="flex items-center justify-between text-xs py-1 px-2 rounded-lg hover:bg-slate-50 transition"
+                      className="flex items-center justify-between text-xs py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-jira-dark-card transition"
                     >
                       <div className="flex items-center gap-2">
                         <span
                           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: getStatusColor(s.category, idx, s.name) }}
                         />
-                        <span className="font-medium text-jira-text">{s.name}</span>
+                        <span className="font-medium text-jira-text dark:text-jira-dark-text">{s.name}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-jira-subtle font-medium tabular-nums">
+                      <div className="flex items-center gap-2 text-jira-subtle dark:text-slate-300 font-medium tabular-nums">
                         <span>{s.count}</span>
                         <span className="text-[11px] text-slate-400">({s.percentage}%)</span>
                       </div>

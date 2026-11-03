@@ -234,7 +234,7 @@ export const LabelSelector: React.FC<LabelSelectorProps> = ({
             </span>
             {loading ? (
               <div className="py-3 text-center text-jira-subtle">
-                <Loader2 size={14} className="animate-spin mx-auto text-jira-blue" />
+                <Loader2 size={14} className="animate-spin mx-auto text-jira-blue dark:text-blue-400" />
               </div>
             ) : filteredProjectLabels.length === 0 ? (
               <div className="text-[11px] text-jira-subtle dark:text-jira-dark-subtle py-2 text-center">

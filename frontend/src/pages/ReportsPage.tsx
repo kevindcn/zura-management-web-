@@ -406,7 +406,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
               {/* Sprint Dropdown */}
               <div className="flex items-center gap-2.5">
                 <span className="text-xs font-bold text-jira-text dark:text-jira-dark-text flex items-center gap-1.5 whitespace-nowrap">
-                  <Layers size={14} className="text-jira-blue" />
+                  <Layers size={14} className="text-jira-blue dark:text-blue-400" />
                   <span>{t.reports.burndown.selectSprint}:</span>
                 </span>
                 <div className="w-72 sm:w-80 md:w-96">
@@ -545,7 +545,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
 
               {loadingBurndown ? (
                 <div className="h-72 flex items-center justify-center">
-                  <Loader2 size={24} className="animate-spin text-jira-blue" />
+                  <Loader2 size={24} className="animate-spin text-jira-blue dark:text-blue-400" />
                 </div>
               ) : !burndownData || burndownData.days.length === 0 ? (
                 <div className="h-72 flex flex-col items-center justify-center text-center p-6 text-jira-subtle dark:text-jira-dark-subtle">
@@ -684,7 +684,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
             <div className="p-6 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-xl shadow-xs">
               {loadingVelocity ? (
                 <div className="h-72 flex items-center justify-center">
-                  <Loader2 size={24} className="animate-spin text-jira-blue" />
+                  <Loader2 size={24} className="animate-spin text-jira-blue dark:text-blue-400" />
                 </div>
               ) : !velocityData || velocityData.sprints.length === 0 ? (
                 <div className="h-72 flex flex-col items-center justify-center text-center p-6 text-jira-subtle dark:text-jira-dark-subtle">
@@ -734,7 +734,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-xl shadow-xs">
               <div className="flex items-center gap-2.5">
                 <span className="text-xs font-bold text-jira-text dark:text-jira-dark-text flex items-center gap-1.5 whitespace-nowrap">
-                  <FileText size={14} className="text-jira-blue" />
+                  <FileText size={14} className="text-jira-blue dark:text-blue-400" />
                   <span>{t.reports.sprintReport.selectSprint}:</span>
                 </span>
                 <div className="w-72 sm:w-80 md:w-96">
@@ -763,7 +763,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
 
             {loadingReport ? (
               <div className="h-72 flex items-center justify-center bg-white dark:bg-jira-dark-surface rounded-xl border border-jira-border dark:border-jira-dark-border">
-                <Loader2 size={24} className="animate-spin text-jira-blue" />
+                <Loader2 size={24} className="animate-spin text-jira-blue dark:text-blue-400" />
               </div>
             ) : reportData ? (
               <>
@@ -1166,7 +1166,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
                     {/* Action Items */}
                     <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-800/40 rounded-xl space-y-2">
                       <label className="text-xs font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
-                        <Target size={14} className="text-jira-blue" />
+                        <Target size={14} className="text-jira-blue dark:text-blue-400" />
                         <span>{t.reports.sprintReport.retroActionItems}</span>
                       </label>
                       <textarea

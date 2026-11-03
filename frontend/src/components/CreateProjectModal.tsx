@@ -87,13 +87,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-lg shadow-jira-modal border border-jira-border w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="bg-white dark:bg-jira-dark-card rounded-lg shadow-jira-modal border border-jira-border dark:border-jira-dark-border w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
-        <div className="px-6 py-4 border-b border-jira-border flex items-center justify-between">
-          <h2 className="text-base font-bold text-jira-text">{t.nav.createProject}</h2>
+        <div className="px-6 py-4 border-b border-jira-border dark:border-jira-dark-border flex items-center justify-between">
+          <h2 className="text-base font-bold text-jira-text dark:text-jira-dark-text">{t.nav.createProject}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded text-jira-subtle hover:text-jira-text hover:bg-slate-100 transition"
+            className="p-1 rounded text-jira-subtle dark:text-jira-dark-subtle hover:text-jira-text dark:hover:text-white hover:bg-slate-100 dark:hover:bg-jira-dark-hover transition"
           >
             <X size={18} />
           </button>
@@ -107,7 +107,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+            <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
               Nama Project <span className="text-red-500">*</span>
             </label>
             <input
@@ -116,12 +116,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               value={name}
               onChange={handleNameChange}
               placeholder="Contoh: Aplikasi Layanan Pelanggan"
-              className="w-full px-3 py-2 bg-white border border-jira-border rounded-md text-xs text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
+              className="w-full px-3 py-2 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+            <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
               Key Project (Awalan Work Item) <span className="text-red-500">*</span>
             </label>
             <input
@@ -130,15 +130,15 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               value={key}
               onChange={(e) => setKey(e.target.value.toUpperCase())}
               placeholder="Contoh: APP"
-              className="w-full px-3 py-2 bg-white border border-jira-border rounded-md text-xs text-jira-text font-mono uppercase outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
+              className="w-full px-3 py-2 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text font-mono uppercase outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
             />
-            <p className="text-[11px] text-jira-subtle mt-1">
+            <p className="text-[11px] text-jira-subtle dark:text-jira-dark-subtle mt-1">
               2-6 huruf/angka kapital. Work item akan bernomor {key || "KEY"}-1, {key || "KEY"}-2.
             </p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-jira-subtle uppercase mb-1">
+            <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
               Deskripsi ({t.common.optional})
             </label>
             <textarea
@@ -146,15 +146,15 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Tujuan, ruang lingkup, atau pedoman project..."
-              className="w-full px-3 py-2 bg-white border border-jira-border rounded-md text-xs text-jira-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue resize-y"
+              className="w-full px-3 py-2 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue resize-y"
             />
           </div>
 
-          <div className="pt-3 border-t border-jira-border flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-jira-border dark:border-jira-dark-border flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-jira-subtle hover:text-jira-text hover:bg-slate-100 rounded-md transition"
+              className="px-4 py-2 text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle hover:text-jira-text dark:hover:text-white hover:bg-slate-100 dark:hover:bg-jira-dark-hover rounded-md transition"
             >
               {t.common.cancel}
             </button>

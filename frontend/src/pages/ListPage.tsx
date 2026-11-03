@@ -270,12 +270,12 @@ export const ListPage: React.FC<ListPageProps> = ({
 
   const renderSortIcon = (col: SortColumn) => {
     if (sortColumn !== col) {
-      return <ArrowUpDown size={12} className="text-slate-400 group-hover:text-slate-600 transition" />;
+      return <ArrowUpDown size={12} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition" />;
     }
     return sortDirection === "asc" ? (
-      <ArrowUp size={12} className="text-jira-blue" />
+      <ArrowUp size={12} className="text-jira-blue dark:text-blue-400" />
     ) : (
-      <ArrowDown size={12} className="text-jira-blue" />
+      <ArrowDown size={12} className="text-jira-blue dark:text-blue-400" />
     );
   };
 
@@ -339,7 +339,7 @@ export const ListPage: React.FC<ListPageProps> = ({
             </button>
             <button
               onClick={() => onSwitchView("list")}
-              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue transition-colors"
+              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue dark:border-blue-400 dark:text-blue-400 transition-colors"
               title="List View (Active)"
             >
               <TableIcon size={14} />
@@ -443,7 +443,7 @@ export const ListPage: React.FC<ListPageProps> = ({
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-jira-subtle hover:text-jira-text underline text-xs font-medium ml-1"
+              className="text-jira-subtle dark:text-jira-dark-subtle hover:text-jira-text dark:hover:text-white underline text-xs font-medium ml-1"
             >
               {t.common.clearFilter}
             </button>
@@ -484,7 +484,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                   {/* Title / Summary */}
                   <th
                     onClick={() => handleSort("title")}
-                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 transition min-w-[240px] group"
+                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-jira-dark-card-hover transition min-w-[240px] group"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{t.list.summary}</span>
@@ -495,7 +495,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                   {/* Status */}
                   <th
                     onClick={() => handleSort("status")}
-                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 transition w-36 group"
+                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-jira-dark-card-hover transition w-36 group"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{t.list.status}</span>
@@ -506,7 +506,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                   {/* Priority */}
                   <th
                     onClick={() => handleSort("priority")}
-                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 transition w-28 group"
+                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-jira-dark-card-hover transition w-28 group"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{t.list.priority}</span>
@@ -517,7 +517,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                   {/* Assignee */}
                   <th
                     onClick={() => handleSort("assignee")}
-                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 transition w-44 group"
+                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-jira-dark-card-hover transition w-44 group"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{t.list.assignee}</span>
@@ -528,7 +528,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                   {/* Due Date */}
                   <th
                     onClick={() => handleSort("dueDate")}
-                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 transition w-36 group"
+                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-jira-dark-card-hover transition w-36 group"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{t.list.dueDate}</span>
@@ -539,7 +539,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                   {/* Updated */}
                   <th
                     onClick={() => handleSort("updatedAt")}
-                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 transition w-32 group"
+                    className="py-2.5 px-4 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-jira-dark-card-hover transition w-32 group"
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{t.list.updated}</span>
@@ -549,7 +549,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-jira-dark-border">
                 {paginatedIssues.map((issue) => {
                   const overdue = isOverdue(issue.dueDate, issue.status?.category);
                   const isDone = issue.status?.category === "DONE";
@@ -558,7 +558,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                     <tr
                       key={issue.id}
                       onClick={() => handleOpenDetail(issue)}
-                      className="hover:bg-blue-50/40 transition cursor-pointer group"
+                      className="hover:bg-blue-50/40 dark:hover:bg-jira-dark-card-hover transition cursor-pointer group"
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
@@ -571,7 +571,7 @@ export const ListPage: React.FC<ListPageProps> = ({
                       <td className="py-2.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <IssueTypeIcon type={issue.type} size={15} />
-                          <span className="font-mono text-xs font-bold text-jira-blue group-hover:underline">
+                          <span className="font-mono text-xs font-bold text-jira-blue dark:text-blue-400 group-hover:underline">
                             {issue.key}
                           </span>
                         </div>
@@ -581,15 +581,15 @@ export const ListPage: React.FC<ListPageProps> = ({
                       <td className="py-2.5 px-4">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
-                            className={`font-medium text-jira-text text-xs ${
-                              isDone ? "line-through text-slate-400" : ""
+                            className={`font-medium text-jira-text dark:text-jira-dark-text text-xs ${
+                              isDone ? "line-through text-slate-400 dark:text-slate-500" : ""
                             }`}
                             title={issue.title}
                           >
                             {issue.title}
                           </span>
                           {issue._count?.comments ? (
-                            <span className="flex items-center gap-0.5 text-[10px] text-jira-subtle flex-shrink-0">
+                            <span className="flex items-center gap-0.5 text-[10px] text-jira-subtle dark:text-jira-dark-subtle flex-shrink-0">
                               <MessageSquare size={11} />
                               {issue._count.comments}
                             </span>
@@ -643,9 +643,9 @@ export const ListPage: React.FC<ListPageProps> = ({
                                 )}`
                               }
                               alt={issue.assignee.name}
-                              className="w-5 h-5 rounded-full object-cover border border-slate-200 flex-shrink-0"
+                              className="w-5 h-5 rounded-full object-cover border border-slate-200 dark:border-jira-dark-border flex-shrink-0"
                             />
-                            <span className="text-jira-text truncate font-medium text-[11px]">
+                            <span className="text-jira-text dark:text-jira-dark-text truncate font-medium text-[11px]">
                               {issue.assignee.name}
                             </span>
                           </div>

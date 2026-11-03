@@ -480,7 +480,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleNavigateIssue(issue.parent!.key)}
-                    className="text-xs text-jira-blue hover:underline flex items-center gap-1 font-semibold mr-1"
+                    className="text-xs text-jira-blue dark:text-blue-400 hover:underline flex items-center gap-1 font-semibold mr-1"
                     title={`Parent: ${issue.parent.title}`}
                   >
                     <ChevronLeft size={13} />
@@ -494,7 +494,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
 
                 {savingField ? (
                   <span className="text-[11px] text-jira-subtle dark:text-jira-dark-subtle flex items-center gap-1 font-medium bg-slate-100 dark:bg-jira-dark-card px-2 py-0.5 rounded ml-2">
-                    <Loader2 size={11} className="animate-spin text-jira-blue" />
+                    <Loader2 size={11} className="animate-spin text-jira-blue dark:text-blue-400" />
                     <span>{t.common.saving}</span>
                   </span>
                 ) : (
@@ -527,7 +527,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 }
               >
                 {isWatchLoading ? (
-                  <Loader2 size={13} className="animate-spin text-jira-blue" />
+                  <Loader2 size={13} className="animate-spin text-jira-blue dark:text-blue-400" />
                 ) : isWatching ? (
                   <Eye size={13} className="text-jira-blue dark:text-blue-400" />
                 ) : (

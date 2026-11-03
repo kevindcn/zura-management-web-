@@ -328,7 +328,7 @@ export const BoardPage: React.FC<BoardPageProps> = ({
             </button>
             <button
               onClick={() => onSwitchView("board")}
-              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue transition-colors"
+              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue dark:border-blue-400 dark:text-blue-400 transition-colors"
               title="Kanban Board (Active)"
             >
               <Kanban size={14} />
@@ -453,7 +453,7 @@ export const BoardPage: React.FC<BoardPageProps> = ({
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-jira-blue hover:underline flex items-center gap-1 font-semibold text-xs ml-1 transition"
+              className="text-jira-blue dark:text-blue-400 hover:underline flex items-center gap-1 font-semibold text-xs ml-1 transition"
             >
               <X size={13} />
               <span>{t.common.clearFilter}</span>

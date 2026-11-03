@@ -604,7 +604,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
             setInlineTitle("");
             setInlineType("TASK");
           }}
-          className="w-full py-2 px-3 text-left text-xs font-semibold text-jira-subtle hover:text-jira-blue hover:bg-slate-50/80 rounded-b-lg border-t border-slate-100 flex items-center gap-1.5 transition"
+          className="w-full py-2 px-3 text-left text-xs font-semibold text-jira-subtle dark:text-slate-400 hover:text-jira-blue dark:hover:text-blue-400 hover:bg-slate-50/80 dark:hover:bg-jira-dark-hover rounded-b-lg border-t border-slate-100 dark:border-jira-dark-border flex items-center gap-1.5 transition"
         >
           <Plus size={14} />
           <span>
@@ -615,7 +615,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
     }
 
     return (
-      <div className="p-3 bg-slate-50/70 border-t border-slate-200 rounded-b-lg space-y-2.5">
+      <div className="p-3 bg-slate-50/70 dark:bg-jira-dark-surface border-t border-slate-200 dark:border-jira-dark-border rounded-b-lg space-y-2.5">
         <div className="flex items-center gap-2">
           {/* Type selector */}
           <IssueTypeSelect
@@ -635,7 +635,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
               if (e.key === "Escape") setInlineSprintId(null);
             }}
             placeholder={t.board.whatNeedsDone}
-            className="flex-1 px-3 py-1.5 bg-white border border-jira-border rounded text-xs text-jira-text outline-none focus:border-jira-blue transition"
+            className="flex-1 px-3 py-1.5 bg-white dark:bg-jira-dark-card border border-jira-border dark:border-jira-dark-border rounded text-xs text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue dark:focus:border-blue-400 transition"
           />
         </div>
 
@@ -643,7 +643,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
           <button
             onClick={() => setInlineSprintId(null)}
             disabled={inlineSubmitting}
-            className="px-3 py-1 text-xs font-semibold text-jira-subtle hover:text-jira-text hover:bg-slate-200/60 rounded transition"
+            className="px-3 py-1 text-xs font-semibold text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-jira-dark-hover rounded transition"
           >
             {t.common.cancel}
           </button>
@@ -723,7 +723,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
             </button>
             <button
               onClick={() => onSwitchView("backlog")}
-              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue transition-colors"
+              className="flex items-center gap-2 px-3.5 pb-2.5 pt-1 text-xs font-semibold border-b-2 border-jira-blue text-jira-blue dark:border-blue-400 dark:text-blue-400 transition-colors"
               title="Backlog & Sprint (Active)"
             >
               <Layers size={14} />
@@ -827,7 +827,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                       SPRINT AKTIF
                     </span>
-                    <h2 className="text-sm font-bold text-jira-text">
+                    <h2 className="text-sm font-bold text-jira-text dark:text-jira-dark-text">
                       {activeSprint.name}
                     </h2>
                   </div>
@@ -835,13 +835,13 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                   {/* Dates & Goal */}
                   <div className="flex items-center gap-3 text-[11px] text-jira-subtle mt-1">
                     {formatDateRange(activeSprint.startDate, activeSprint.endDate) && (
-                      <span className="flex items-center gap-1 font-medium text-slate-600">
+                      <span className="flex items-center gap-1 font-medium text-slate-600 dark:text-slate-300">
                         <Calendar size={12} className="text-slate-400" />
                         {formatDateRange(activeSprint.startDate, activeSprint.endDate)}
                       </span>
                     )}
                     {activeSprint.goal && (
-                      <span className="flex items-center gap-1 italic text-slate-500 truncate max-w-md">
+                      <span className="flex items-center gap-1 italic text-slate-500 dark:text-slate-400 truncate max-w-md">
                         <Flag size={12} className="text-slate-400 flex-shrink-0" />
                         "{activeSprint.goal}"
                       </span>
@@ -859,19 +859,19 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                   return (
                     <div className="flex items-center gap-1 font-mono text-[11px] font-bold">
                       <span
-                        className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200"
+                        className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-jira-dark-surface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-jira-dark-border"
                         title={`${pts.todo} poin To Do`}
                       >
                         {pts.todo}
                       </span>
                       <span
-                        className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200"
+                        className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60"
                         title={`${pts.inProgress} poin In Progress`}
                       >
                         {pts.inProgress}
                       </span>
                       <span
-                        className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
                         title={`${pts.done} poin Selesai`}
                       >
                         {pts.done}
@@ -897,7 +897,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                   className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-jira-dark-card border border-jira-border dark:border-jira-dark-border hover:bg-slate-50 dark:hover:bg-jira-dark-hover text-jira-text dark:text-jira-dark-text rounded-md text-xs font-semibold transition shadow-xs"
                   title="View Burndown & Sprint Reports"
                 >
-                  <TrendingUp size={13} className="text-jira-blue" />
+                  <TrendingUp size={13} className="text-jira-blue dark:text-blue-400" />
                   <span>Burndown</span>
                 </button>
 
@@ -972,27 +972,27 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
 
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-jira-dark-card text-slate-700 dark:text-slate-300">
                         RENCANA
                       </span>
-                      <h3 className="text-xs font-bold text-jira-text">
+                      <h3 className="text-xs font-bold text-jira-text dark:text-jira-dark-text">
                         {sprint.name}
                       </h3>
-                      <span className="text-[11px] text-jira-subtle">
+                      <span className="text-[11px] text-jira-subtle dark:text-slate-400">
                         ({items.length} item)
                       </span>
                     </div>
 
                     {/* Dates & Goal */}
-                    <div className="flex items-center gap-3 text-[11px] text-jira-subtle mt-0.5">
+                    <div className="flex items-center gap-3 text-[11px] text-jira-subtle dark:text-slate-400 mt-0.5">
                       {formatDateRange(sprint.startDate, sprint.endDate) && (
-                        <span className="flex items-center gap-1 font-medium text-slate-600">
+                        <span className="flex items-center gap-1 font-medium text-slate-600 dark:text-slate-300">
                           <Calendar size={12} className="text-slate-400" />
                           {formatDateRange(sprint.startDate, sprint.endDate)}
                         </span>
                       )}
                       {sprint.goal && (
-                        <span className="flex items-center gap-1 italic text-slate-500 truncate max-w-md">
+                        <span className="flex items-center gap-1 italic text-slate-500 dark:text-slate-400 truncate max-w-md">
                           <Flag size={12} className="text-slate-400 flex-shrink-0" />
                           "{sprint.goal}"
                         </span>
@@ -1004,7 +1004,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                 {/* Right: Points & Start Sprint Button */}
                 <div className="flex items-center gap-3">
                   {/* Total Story Points */}
-                  <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                  <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-jira-dark-surface px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-jira-dark-border">
                     {pts.total} poin
                   </span>
 
@@ -1118,14 +1118,14 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
           {!isBacklogCollapsed && (
             <div>
               {backlogIssues.length === 0 ? (
-                <div className="py-8 text-center bg-white px-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                <div className="py-8 text-center bg-white dark:bg-jira-dark-surface px-4">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-jira-dark-card text-slate-400 dark:text-jira-dark-subtle flex items-center justify-center mx-auto mb-2">
                     <CheckCircle2 size={20} />
                   </div>
-                  <p className="text-xs font-bold text-jira-text">
+                  <p className="text-xs font-bold text-jira-text dark:text-jira-dark-text">
                     {t.backlog.noBacklogIssues}
                   </p>
-                  <p className="text-[11px] text-jira-subtle mt-0.5 max-w-sm mx-auto">
+                  <p className="text-[11px] text-jira-subtle dark:text-jira-dark-subtle mt-0.5 max-w-sm mx-auto">
                     {t.backlog.emptyBacklogDesc}
                   </p>
                 </div>
@@ -1164,18 +1164,18 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                   return (
                     <div
                       key={cs.id}
-                      className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs"
+                      className="p-3 bg-slate-50 dark:bg-jira-dark-surface border border-slate-200 dark:border-jira-dark-border rounded-lg flex items-center justify-between text-xs"
                     >
                       <div>
                         <div className="flex items-center gap-2">
                           <CheckCircle2 size={14} className="text-emerald-600" />
-                          <span className="font-bold text-jira-text">{cs.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-slate-200 text-slate-600">
+                          <span className="font-bold text-jira-text dark:text-jira-dark-text">{cs.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-slate-200 dark:bg-jira-dark-card text-slate-600 dark:text-slate-300">
                             SELESAI
                           </span>
                         </div>
                         {cs.goal && (
-                          <p className="text-[11px] text-jira-subtle italic mt-0.5">
+                          <p className="text-[11px] text-jira-subtle dark:text-slate-400 italic mt-0.5">
                             "{cs.goal}"
                           </p>
                         )}

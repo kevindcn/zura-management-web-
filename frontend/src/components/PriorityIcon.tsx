@@ -69,7 +69,7 @@ export const PriorityIcon: React.FC<PriorityIconProps> = ({
         <IconComponent size={size} strokeWidth={2.5} />
       </span>
       {showLabel && (
-        <span className="text-xs font-medium text-jira-text">{config.label}</span>
+        <span className="text-xs font-medium text-jira-text dark:text-jira-dark-text">{config.label}</span>
       )}
     </span>
   );

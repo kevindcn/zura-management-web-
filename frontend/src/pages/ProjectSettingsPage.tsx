@@ -274,7 +274,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
               <span className="font-semibold text-jira-text dark:text-jira-dark-text">{t.projectSettings.title}</span>
             </div>
             <h1 className="text-2xl font-bold text-jira-text dark:text-jira-dark-text flex items-center gap-2.5">
-              <Settings className="text-jira-blue" size={24} />
+              <Settings className="text-jira-blue dark:text-blue-400" size={24} />
               <span>{t.projectSettings.title}</span>
             </h1>
             <p className="text-xs text-jira-subtle dark:text-jira-dark-subtle mt-1">{t.projectSettings.subtitle}</p>
@@ -355,7 +355,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-bold text-jira-text dark:text-jira-dark-text flex items-center gap-2">
-                    <ShieldCheck className="text-jira-blue" size={18} />
+                    <ShieldCheck className="text-jira-blue dark:text-blue-400" size={18} />
                     <span>{t.projectSettings.members.title}</span>
                   </h2>
                   <p className="text-xs text-jira-subtle dark:text-jira-dark-subtle mt-0.5">{t.projectSettings.members.desc}</p>
@@ -526,7 +526,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
             {/* RBAC Guide Cards */}
             <div className="bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-lg p-5 shadow-card space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-jira-dark-border">
-                <Shield className="text-jira-blue" size={17} />
+                <Shield className="text-jira-blue dark:text-blue-400" size={17} />
                 <h3 className="text-sm font-bold text-jira-text dark:text-jira-dark-text">
                   {t.projectSettings.rbacGuide.title}
                 </h3>
@@ -705,7 +705,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
           <div className="bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-lg p-6 shadow-card space-y-4 animate-in fade-in duration-150">
             <div>
               <h2 className="text-sm font-bold text-jira-text dark:text-jira-dark-text flex items-center gap-2">
-                <GitCommit className="text-jira-blue" size={17} />
+                <GitCommit className="text-jira-blue dark:text-blue-400" size={17} />
                 <span>Workflow Statuses</span>
               </h2>
               <p className="text-xs text-jira-subtle dark:text-jira-dark-subtle mt-0.5">
@@ -753,7 +753,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
           <div className="bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-lg p-6 shadow-card space-y-6 animate-in fade-in duration-150">
             <div>
               <h2 className="text-sm font-bold text-jira-text dark:text-jira-dark-text flex items-center gap-2">
-                <Palette className="text-jira-blue" size={18} />
+                <Palette className="text-jira-blue dark:text-blue-400" size={18} />
                 <span>{t.projectSettings.appearance.title}</span>
               </h2>
               <p className="text-xs text-jira-subtle dark:text-jira-dark-subtle mt-0.5">
@@ -930,7 +930,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
             </div>
 
             <div className="pt-4 border-t border-slate-100 dark:border-jira-dark-border text-xs text-jira-subtle dark:text-jira-dark-subtle flex items-center gap-2">
-              <Info size={14} className="text-jira-blue flex-shrink-0" />
+              <Info size={14} className="text-jira-blue dark:text-blue-400 flex-shrink-0" />
               <span>{t.projectSettings.appearance.note}</span>
             </div>
           </div>
@@ -986,7 +986,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
           <div className="bg-white dark:bg-jira-dark-surface rounded-lg shadow-jira-modal border border-jira-border dark:border-jira-dark-border w-full max-w-md p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-jira-border dark:border-jira-dark-border">
               <div className="flex items-center gap-2">
-                <UserPlus size={18} className="text-jira-blue" />
+                <UserPlus size={18} className="text-jira-blue dark:text-blue-400" />
                 <h3 className="text-sm font-bold text-jira-text dark:text-jira-dark-text">
                   {t.projectSettings.members.addMember}
                 </h3>
@@ -1134,7 +1134,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
 
               {/* In-app Notification Notice */}
               <div className="p-2 bg-slate-50 dark:bg-jira-dark-card border border-slate-200 dark:border-jira-dark-border rounded text-[11px] text-jira-subtle dark:text-jira-dark-subtle flex items-center gap-2">
-                <Bell size={13} className="text-jira-blue flex-shrink-0" />
+                <Bell size={13} className="text-jira-blue dark:text-blue-400 flex-shrink-0" />
                 <span>The user will automatically receive a notification in their account.</span>
               </div>
 
