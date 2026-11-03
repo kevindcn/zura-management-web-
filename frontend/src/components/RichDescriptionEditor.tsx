@@ -24,7 +24,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { User } from "../types";
-import { api } from "../lib/api";
+import { api, getErrorMessage } from "../lib/api";
+import { useToastStore } from "../store/toast";
 
 interface RichDescriptionEditorProps {
   value: string;
@@ -289,7 +290,9 @@ export const RichDescriptionEditor: React.FC<RichDescriptionEditorProps> = ({
       const res = await api.upload(file);
       setUploadedPreview(res.url);
     } catch (err: any) {
-      alert(err.message || "Failed to upload file.");
+      const msg = getErrorMessage(err, "Failed to upload file.");
+      useToastStore.getState().error(msg);
+      alert(msg);
       setUploadedFileName("");
       setUploadedPreview(null);
     } finally {
@@ -1137,6 +1140,7 @@ export const RichDescriptionEditor: React.FC<RichDescriptionEditorProps> = ({
                         );
                       } catch (err: any) {
                         console.error("Paste upload failed:", err);
+                        useToastStore.getState().error(getErrorMessage(err, "Failed to upload image."));
                       }
                       return;
                     }

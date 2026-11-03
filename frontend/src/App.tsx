@@ -3,7 +3,7 @@ import { useAuthStore } from "./store/auth";
 import { useToastStore } from "./store/toast";
 import { useProjectStore } from "./store/project";
 import { can, getUserRole } from "./lib/permissions";
-import { api, isSessionExpired, isSessionExpiredError } from "./lib/api";
+import { api, isSessionExpired, isSessionExpiredError, getErrorMessage } from "./lib/api";
 import { Project, Issue, Status } from "./types";
 import { AuthPage } from "./pages/AuthPage";
 import { BoardPage } from "./pages/BoardPage";
@@ -332,7 +332,7 @@ export function App() {
       toast.success(`Project '${res.project.name}' created successfully!`);
       await loadProjects(res.project.key);
     } catch (err: any) {
-      toast.error(err.message || "Failed to create project.");
+      toast.error(getErrorMessage(err, "Failed to create project."));
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Loader2 } from "lucide-react";
 import { t } from "../lib/i18n";
+import { getErrorMessage } from "../lib/api";
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -73,7 +74,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       setDescription("");
       onClose();
     } catch (err: any) {
-      setError(err.message || "Gagal membuat project");
+      setError(getErrorMessage(err, "Gagal membuat project"));
     } finally {
       setLoading(false);
     }

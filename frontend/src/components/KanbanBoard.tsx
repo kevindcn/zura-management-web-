@@ -20,7 +20,7 @@ import { useToastStore } from "../store/toast";
 import { t } from "../lib/i18n";
 import { FolderPlus, Plus, X, Loader2 } from "lucide-react";
 import { usePermission } from "../lib/permissions";
-import { api } from "../lib/api";
+import { api, getErrorMessage } from "../lib/api";
 
 interface KanbanBoardProps {
   projectKey?: string;
@@ -85,7 +85,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setNewColumnName("");
       setIsAddingColumn(false);
     } catch (err: any) {
-      toast.error(err.message || "Failed to add board column");
+      toast.error(getErrorMessage(err, "Failed to add board column"));
     } finally {
       setIsSubmittingColumn(false);
     }
@@ -99,7 +99,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       onStatusDeleted?.(statusId);
       toast.success("Board column removed successfully!");
     } catch (err: any) {
-      toast.error(err.message || "Failed to remove board column");
+      toast.error(getErrorMessage(err, "Failed to remove board column"));
     }
   };
 

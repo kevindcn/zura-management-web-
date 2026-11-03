@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectMember, User, ProjectRole } from "../types";
-import { api } from "../lib/api";
+import { api, getErrorMessage } from "../lib/api";
 import { useToastStore } from "../store/toast";
 import { useAuthStore } from "../store/auth";
 import { usePermission } from "../lib/permissions";
@@ -138,7 +138,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
       toast.success(t.projectSettings.general.saveSuccess);
     } catch (err: any) {
       console.error("Failed to update project:", err);
-      toast.error(err.message || "Failed to update project details.");
+      toast.error(getErrorMessage(err, "Failed to update project details."));
     } finally {
       setSavingGeneral(false);
     }
@@ -163,7 +163,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
       toast.success(t.projectSettings.members.changeRoleSuccess);
     } catch (err: any) {
       console.error("Failed to change member role:", err);
-      toast.error(err.message || "Failed to update member role.");
+      toast.error(getErrorMessage(err, "Failed to update member role."));
     } finally {
       setUpdatingRoleId(null);
     }
@@ -209,7 +209,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
       setAddRole("MEMBER");
     } catch (err: any) {
       console.error("Failed to add member:", err);
-      toast.error(err.message || "Failed to add member to project.");
+      toast.error(getErrorMessage(err, "Failed to add member to project."));
     } finally {
       setAddingMember(false);
     }
@@ -231,7 +231,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
       setMemberToRemove(null);
     } catch (err: any) {
       console.error("Failed to remove member:", err);
-      toast.error(err.message || "Failed to remove member from project.");
+      toast.error(getErrorMessage(err, "Failed to remove member from project."));
     } finally {
       setRemovingMember(false);
     }
@@ -252,7 +252,7 @@ export const ProjectSettingsPage: React.FC<ProjectSettingsPageProps> = ({
       onProjectDeleted(project.key);
     } catch (err: any) {
       console.error("Failed to delete project:", err);
-      toast.error(err.message || "Failed to delete project.");
+      toast.error(getErrorMessage(err, "Failed to delete project."));
       setDeletingProject(false);
     }
   };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Project, Issue, Sprint, User, IssueType, PriorityLevel } from "../types";
-import { api, isSessionExpired, isSessionExpiredError } from "../lib/api";
+import { api, isSessionExpired, isSessionExpiredError, getErrorMessage } from "../lib/api";
 import { useToastStore } from "../store/toast";
 import { useAuthStore } from "../store/auth";
 import { can, getUserRole } from "../lib/permissions";
@@ -118,6 +118,32 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
 
   // Moving issue dropdown / popover state
   const [movingIssueId, setMovingIssueId] = useState<string | null>(null);
+  const [movingPlacement, setMovingPlacement] = useState<"top" | "bottom">("bottom");
+
+  // Close moving dropdown on click outside or escape
+  useEffect(() => {
+    if (!movingIssueId) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".move-sprint-dropdown") && !target.closest(".move-sprint-trigger")) {
+        setMovingIssueId(null);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMovingIssueId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [movingIssueId]);
 
   // Fetch sprints
   const loadSprints = async () => {
@@ -255,8 +281,51 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
       );
       await loadSprints();
     } catch (err: any) {
-      toast.error(err.message || "Failed to move work item");
+      toast.error(getErrorMessage(err, "Failed to move work item"));
     }
+  };
+
+  // Handle toggling move to sprint dropdown with auto placement
+  const handleToggleMoveMenu = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    issueId: string
+  ) => {
+    e.stopPropagation();
+    if (movingIssueId === issueId) {
+      setMovingIssueId(null);
+      return;
+    }
+
+    const button = e.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const dropdownHeight = 220;
+
+    // 1. Space from bottom of button to viewport bottom
+    const spaceBelowViewport = window.innerHeight - rect.bottom;
+
+    // 2. Space from bottom of button to container bottom (card or scrollable area)
+    const cardContainer = button.closest<HTMLElement>("[data-card-container]");
+    const scrollContainer = button.closest<HTMLElement>(".overflow-auto");
+
+    let spaceBelowContainer = Infinity;
+    if (cardContainer) {
+      const cardRect = cardContainer.getBoundingClientRect();
+      spaceBelowContainer = Math.min(spaceBelowContainer, cardRect.bottom - rect.bottom);
+    }
+    if (scrollContainer) {
+      const scrollRect = scrollContainer.getBoundingClientRect();
+      spaceBelowContainer = Math.min(spaceBelowContainer, scrollRect.bottom - rect.bottom);
+    }
+
+    const spaceBelow = Math.min(spaceBelowViewport, spaceBelowContainer);
+    const spaceAbove = rect.top;
+
+    // Auto placement: jika di bagian bawah (< 220px) dan atas cukup (> 150px),
+    // otomatis ke atas (top). Jika di atas dan masih terlihat, normal ke bawah (bottom).
+    const isAtBottom = spaceBelow < dropdownHeight && spaceAbove > 150;
+
+    setMovingPlacement(isAtBottom ? "top" : "bottom");
+    setMovingIssueId(issueId);
   };
 
   // Handle inline issue creation
@@ -293,7 +362,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
       await loadSprints();
       await onRefreshIssues();
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete sprint");
+      toast.error(getErrorMessage(err, "Failed to delete sprint"));
     }
   };
 
@@ -335,9 +404,9 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
     return (
       <div
         key={issue.id}
-        className={`group flex items-center justify-between gap-3 px-3.5 py-2.5 bg-white dark:bg-jira-dark-card hover:bg-slate-50/80 dark:hover:bg-jira-dark-hover border-b border-slate-100 dark:border-jira-dark-border last:border-b-0 transition select-none text-xs ${
+        className={`group flex items-center justify-between gap-3 px-3.5 py-2.5 bg-white dark:bg-jira-dark-card hover:bg-slate-50/80 dark:hover:bg-jira-dark-hover border-b border-slate-100 dark:border-jira-dark-border last:border-b-0 last:rounded-b-xl transition select-none text-xs ${
           isDone ? "opacity-75" : ""
-        }`}
+        } ${movingIssueId === issue.id ? "relative z-30" : ""}`}
       >
         {/* Left: Type, Key, Title */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -448,50 +517,72 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
           </div>
 
           {/* Move to Sprint dropdown button */}
-          <div className="relative">
+          <div className="relative move-sprint-trigger">
             <button
-              onClick={() =>
-                setMovingIssueId((prev) => (prev === issue.id ? null : issue.id))
-              }
+              onClick={(e) => handleToggleMoveMenu(e, issue.id)}
               title="Move this work item"
-              className="p-1 rounded text-slate-400 hover:text-jira-text dark:hover:text-jira-dark-text hover:bg-slate-200/60 dark:hover:bg-jira-dark-hover transition"
+              className={`p-1 rounded text-slate-400 hover:text-jira-text dark:hover:text-jira-dark-text hover:bg-slate-200/60 dark:hover:bg-jira-dark-hover transition ${
+                movingIssueId === issue.id
+                  ? "bg-slate-200/70 dark:bg-jira-dark-hover text-jira-text dark:text-jira-dark-text"
+                  : ""
+              }`}
             >
               <ArrowRightLeft size={13} />
             </button>
 
             {movingIssueId === issue.id && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-jira-dark-card rounded-lg shadow-jira-dropdown border border-jira-border dark:border-jira-dark-border py-1 z-30 text-xs">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-jira-subtle dark:text-slate-400 border-b border-slate-100 dark:border-jira-dark-border">
-                  {t.backlog.moveToSprint}
+              <div
+                className={`move-sprint-dropdown absolute right-0 ${
+                  movingPlacement === "top" ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                } w-56 bg-white dark:bg-jira-dark-card rounded-lg shadow-xl border border-jira-border dark:border-jira-dark-border py-1 z-50 text-xs animate-in fade-in duration-150`}
+              >
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-jira-subtle dark:text-slate-400 border-b border-slate-100 dark:border-jira-dark-border flex items-center justify-between">
+                  <span>{t.backlog.moveToSprint}</span>
+                  <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500 font-medium">{issue.key}</span>
                 </div>
 
                 {/* Sprints list */}
-                {sprints
-                  .filter((s) => s.state !== "CLOSED" && s.id !== issue.sprintId)
-                  .map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => handleMoveIssueToSprint(issue, s.id)}
-                      className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-jira-text flex items-center justify-between gap-1 transition"
-                    >
-                      <span className="truncate">{s.name}</span>
-                      {s.state === "ACTIVE" && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-emerald-100 text-emerald-800">
-                          Aktif
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                <div className="max-h-60 overflow-y-auto py-0.5">
+                  {sprints
+                    .filter((s) => s.state !== "CLOSED" && s.id !== issue.sprintId)
+                    .map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveIssueToSprint(issue, s.id);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-jira-dark-hover text-jira-text dark:text-jira-dark-text flex items-center justify-between gap-1.5 transition text-xs"
+                      >
+                        <span className="truncate">{s.name}</span>
+                        {s.state === "ACTIVE" && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex-shrink-0">
+                            Aktif
+                          </span>
+                        )}
+                      </button>
+                    ))}
 
-                {/* Backlog option */}
-                {issue.sprintId && (
-                  <button
-                    onClick={() => handleMoveIssueToSprint(issue, null)}
-                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-jira-text flex items-center gap-1.5 border-t border-slate-100 text-amber-800 transition"
-                  >
-                    <span>{t.backlog.moveToBacklog}</span>
-                  </button>
-                )}
+                  {/* Empty state if no sprints available */}
+                  {sprints.filter((s) => s.state !== "CLOSED" && s.id !== issue.sprintId).length === 0 && !issue.sprintId && (
+                    <div className="px-3 py-2 text-[11px] text-jira-subtle dark:text-slate-400 italic">
+                      Tidak ada sprint tujuan
+                    </div>
+                  )}
+
+                  {/* Backlog option */}
+                  {issue.sprintId && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMoveIssueToSprint(issue, null);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-amber-50/70 dark:hover:bg-amber-950/30 text-amber-800 dark:text-amber-400 flex items-center gap-1.5 border-t border-slate-100 dark:border-jira-dark-border transition text-xs font-medium"
+                    >
+                      <span>{t.backlog.moveToBacklog}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -714,9 +805,10 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
         {/* 1. ACTIVE SPRINT CONTAINER */}
         {/* ======================================================== */}
         {activeSprint && (
-          <div className="bg-white rounded-xl border-2 border-emerald-500/40 shadow-sm overflow-hidden">
+          <div data-card-container="true" className="bg-white dark:bg-jira-dark-card rounded-xl border-2 border-emerald-500/40 shadow-sm">
             {/* Header Banner */}
-            <div className="p-4 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-3">
+            <div className={`p-4 bg-gradient-to-r from-emerald-50/70 via-white to-slate-50 dark:from-emerald-950/20 dark:via-jira-dark-card dark:to-jira-dark-surface border-emerald-100 dark:border-emerald-900/40 flex flex-wrap items-center justify-between gap-3 ${collapsedSprints[activeSprint.id] ? "rounded-xl" : "rounded-t-xl border-b"}`}>
+
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => toggleCollapseSprint(activeSprint.id)}
@@ -864,10 +956,12 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
           return (
             <div
               key={sprint.id}
-              className="bg-white rounded-xl border border-jira-border shadow-xs overflow-hidden"
+              data-card-container="true"
+              className="bg-white dark:bg-jira-dark-card rounded-xl border border-jira-border dark:border-jira-dark-border shadow-xs"
             >
               {/* Header */}
-              <div className="p-3.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className={`p-3.5 bg-slate-50/70 dark:bg-jira-dark-surface border-slate-200 dark:border-jira-dark-border flex flex-wrap items-center justify-between gap-3 ${isCollapsed ? "rounded-xl" : "rounded-t-xl border-b"}`}>
+
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => toggleCollapseSprint(sprint.id)}
@@ -975,9 +1069,10 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
         {/* ======================================================== */}
         {/* 3. BACKLOG POOL CONTAINER */}
         {/* ======================================================== */}
-        <div className="bg-white dark:bg-jira-dark-surface rounded-xl border border-jira-border dark:border-jira-dark-border shadow-xs overflow-hidden">
+        <div data-card-container="true" className="bg-white dark:bg-jira-dark-surface rounded-xl border border-jira-border dark:border-jira-dark-border shadow-xs">
           {/* Header */}
-          <div className="p-3.5 bg-slate-50/70 dark:bg-jira-dark-card border-b border-slate-200 dark:border-jira-dark-border flex items-center justify-between">
+          <div className={`p-3.5 bg-slate-50/70 dark:bg-jira-dark-card border-slate-200 dark:border-jira-dark-border flex items-center justify-between ${isBacklogCollapsed ? "rounded-xl" : "rounded-t-xl border-b"}`}>
+
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setIsBacklogCollapsed((prev) => !prev)}
@@ -1048,11 +1143,11 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
         {/* 4. CLOSED SPRINTS (ARCHIVE) */}
         {/* ======================================================== */}
         {closedSprints.length > 0 && (
-          <div className="bg-slate-50/70 rounded-xl border border-slate-200 overflow-hidden">
+          <div className="bg-slate-50/70 rounded-xl border border-slate-200">
             <button
               onClick={() => setIsClosedSprintsCollapsed((prev) => !prev)}
-              className="w-full p-3 flex items-center justify-between text-left hover:bg-slate-100/70 transition"
-            >
+              className={`w-full p-3 flex items-center justify-between text-left hover:bg-slate-100/70 transition ${isClosedSprintsCollapsed ? "rounded-xl" : "rounded-t-xl"}`}>
+
               <div className="flex items-center gap-2 text-xs font-bold text-jira-subtle">
                 <Archive size={14} />
                 <span>Sprint Selesai ({closedSprints.length})</span>

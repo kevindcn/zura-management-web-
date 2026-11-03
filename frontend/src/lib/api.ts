@@ -25,6 +25,33 @@ import {
 
 export { isSessionExpired, resetSessionExpiredGuard };
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+/**
+ * Universal error message extractor for UI notifications.
+ * If the error is a 403 Forbidden, it strictly uses the server message
+ * (e.g. "Fitur ini dinonaktifkan di akun demo.").
+ */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (!err) return fallback;
+  if (typeof err === "string") return err;
+  const status = (err as any).status || (err as any).statusCode || (err as any).response?.status;
+  const message = (err as any).message;
+
+  if (status === 403 && message) {
+    return message;
+  }
+  return message || fallback;
+}
+
 export class SessionExpiredError extends Error {
   readonly isSessionExpired = true;
   readonly status = 401;
@@ -100,16 +127,15 @@ export async function apiRequest<T>(
       throw new SessionExpiredError();
     }
 
-    throw new Error(data?.message || "Email atau kata sandi tidak valid.");
+    throw new ApiError(data?.message || "Email atau kata sandi tidak valid.", 401);
   }
 
   if (response.status === 403) {
-    useToastStore.getState().error("Anda tidak punya izin untuk aksi ini");
-    throw new Error(data?.message || "Anda tidak punya izin untuk aksi ini");
+    throw new ApiError(data?.message || "Anda tidak punya izin untuk aksi ini", 403);
   }
 
   if (!response.ok) {
-    throw new Error(data?.message || `Request failed with status ${response.status}`);
+    throw new ApiError(data?.message || `Request failed with status ${response.status}`, response.status);
   }
 
   return data as T;
@@ -331,12 +357,11 @@ export const api = {
     }
 
     if (response.status === 403) {
-      useToastStore.getState().error("Anda tidak punya izin untuk aksi ini");
-      throw new Error(data?.message || "Anda tidak punya izin untuk aksi ini");
+      throw new ApiError(data?.message || "Anda tidak punya izin untuk aksi ini", 403);
     }
 
     if (!response.ok) {
-      throw new Error(data?.message || `Upload failed (${response.status})`);
+      throw new ApiError(data?.message || `Upload failed (${response.status})`, response.status);
     }
 
     return data;

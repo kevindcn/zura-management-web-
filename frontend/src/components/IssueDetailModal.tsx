@@ -4,7 +4,7 @@ import { IssueTypeIcon } from "./IssueTypeIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DetailSkeleton } from "./Skeleton";
-import { api } from "../lib/api";
+import { api, getErrorMessage } from "../lib/api";
 import { t } from "../lib/i18n";
 import { useAuthStore } from "../store/auth";
 import { usePermission } from "../lib/permissions";
@@ -438,8 +438,9 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
       setIsConfirmDeleteOpen(false);
       onIssueDeleted(issue.key);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete issue:", err);
+      toast.error(getErrorMessage(err, "Failed to delete issue"));
     } finally {
       setIsDeleting(false);
     }

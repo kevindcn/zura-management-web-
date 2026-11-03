@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Project, Sprint } from "../types";
-import { api } from "../lib/api";
+import { api, getErrorMessage } from "../lib/api";
 import { useToastStore } from "../store/toast";
 import { t } from "../lib/i18n";
 import { X, CheckCircle2, AlertCircle, ArrowRight, Loader2, Layers, Check } from "lucide-react";
@@ -75,7 +75,9 @@ export const CompleteSprintModal: React.FC<CompleteSprintModalProps> = ({
       onSprintCompleted(sprint.id);
       onClose();
     } catch (err: any) {
-      setError(err.message || "Failed to complete sprint");
+      const msg = getErrorMessage(err, "Failed to complete sprint");
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
