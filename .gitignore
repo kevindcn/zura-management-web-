@@ -12,3 +12,4 @@ storage/
 /03-PROMPT-ANTIGRAVITY-JIRALITE.md
 backend/uploads/*
 !backend/uploads/.gitkeep
+.neon
