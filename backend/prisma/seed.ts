@@ -1,43 +1,126 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { computeAgileSprintMetrics } from "../src/lib/burndown.js";
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Starting JiraLite database seed...");
 
-  const passwordHash = await bcrypt.hash("password123", 10);
+  // Safety guard: Database URL check & CLI confirmation argument
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.error("❌ Refusing to seed: DATABASE_URL is not set.");
+    process.exit(1);
+  }
+
+  let host = "";
+  let hostname = "";
+  let dbName = "";
+  try {
+    const parsed = new URL(dbUrl);
+    host = parsed.host;
+    hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    dbName = parsed.pathname.replace(/^\//, "");
+  } catch {
+    const match = dbUrl.match(/@([^/:]+(?::\d+)?)\/([^?]+)/);
+    if (match) {
+      host = match[1];
+      hostname = host.split(":")[0].toLowerCase().replace(/^\[|\]$/g, "");
+      dbName = match[2];
+    } else {
+      console.error("❌ Refusing to seed: Failed to parse DATABASE_URL.");
+      process.exit(1);
+    }
+  }
+
+  console.log(`📡 Target database host: ${host}, database: ${dbName}`);
+
+  // Disallow seeding if database name is 'jira_clone' or 'jira_clone_test'
+  const protectedDbs = ["jira_clone", "jira_clone_test"];
+  if (protectedDbs.includes(dbName.toLowerCase())) {
+    console.error(
+      `❌ Refusing to seed: Database '${dbName}' is strictly protected from seeding.`
+    );
+    process.exit(1);
+  }
+
+  const localHosts = ["localhost", "127.0.0.1", "::1", "0.0.0.0"];
+  const isLocalHost = localHosts.includes(hostname);
+  const allowLocal = process.argv.includes("--allow-local");
+
+  // Require matching --confirm-db=<host>/<nama database> argument
+  const confirmArg = process.argv.find((arg) => arg.startsWith("--confirm-db="));
+  const confirmedTarget = confirmArg
+    ? confirmArg.slice(13).replace(/^["']|["']$/g, "").trim()
+    : undefined;
+
+  const expectedTarget = `${host}/${dbName}`;
+  const matchesTarget =
+    confirmedTarget === expectedTarget ||
+    confirmedTarget === `${hostname}/${dbName}`;
+
+  if (!matchesTarget) {
+    console.error(
+      `❌ Refusing to seed: Missing or mismatched confirmation argument.\n   Format wajib: --confirm-db=<host>/<nama database>\n   Target yang diharapkan: --confirm-db=${expectedTarget}${isLocalHost ? " --allow-local" : ""}`
+    );
+    process.exit(1);
+  }
+
+  if (isLocalHost && !allowLocal) {
+    console.error(
+      `❌ Refusing to seed: Host '${hostname}' is a local environment. Pass --allow-local to override.\n   Contoh: --confirm-db=${expectedTarget} --allow-local`
+    );
+    process.exit(1);
+  }
+
+  // Passwords:
+  // - Demo user (alex.lead@jira-lite.local) gets a random password
+  // - Other seed users get SEED_PASSWORD if provided, otherwise random
+  const demoPassword = crypto.randomBytes(24).toString("hex");
+  const demoPasswordHash = await bcrypt.hash(demoPassword, 10);
+
+  const seedPassword =
+    process.env.SEED_PASSWORD || crypto.randomBytes(24).toString("hex");
+  const seedPasswordHash = await bcrypt.hash(seedPassword, 10);
 
   // 1. Create Users
   const alex = await prisma.user.upsert({
     where: { email: "alex.lead@jira-lite.local" },
-    update: {},
+    update: {
+      passwordHash: demoPasswordHash,
+    },
     create: {
       email: "alex.lead@jira-lite.local",
       name: "Alex Morgan",
-      passwordHash,
+      passwordHash: demoPasswordHash,
       avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Alex%20Morgan&backgroundColor=0c66e4",
     },
   });
 
   const sarah = await prisma.user.upsert({
     where: { email: "sarah.dev@jira-lite.local" },
-    update: {},
+    update: {
+      passwordHash: seedPasswordHash,
+    },
     create: {
       email: "sarah.dev@jira-lite.local",
       name: "Sarah Connor",
-      passwordHash,
+      passwordHash: seedPasswordHash,
       avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=Sarah%20Connor&backgroundColor=00875a",
     },
   });
 
   const david = await prisma.user.upsert({
     where: { email: "david.qa@jira-lite.local" },
-    update: {},
+    update: {
+      passwordHash: seedPasswordHash,
+    },
     create: {
       email: "david.qa@jira-lite.local",
       name: "David Chen",
-      passwordHash,
+      passwordHash: seedPasswordHash,
       avatarUrl: "https://api.dicebear.com/7.x/initials/svg?seed=David%20Chen&backgroundColor=6554c0",
     },
   });
@@ -85,16 +168,142 @@ async function main() {
     });
   }
 
+  // Optional flag: --reset cleans up visitor-created issues (number > 25) in demo project
+  const isReset = process.argv.includes("--reset");
+  if (isReset) {
+    console.log("🧹 --reset specified: Cleaning up visitor-created issues (number > 25) in demo project...");
+    const extraIssues = await prisma.issue.findMany({
+      where: {
+        projectId: project.id,
+        number: { gt: 25 },
+      },
+      select: { id: true, key: true },
+    });
+
+    const extraIssueIds = extraIssues.map((i) => i.id);
+    const extraIssueKeys = extraIssues.map((i) => i.key);
+
+    if (extraIssueIds.length > 0) {
+      // Deletion order to preserve foreign key integrity:
+      // 1. Notifications referencing these issue keys
+      await prisma.notification.deleteMany({
+        where: {
+          projectId: project.id,
+          issueKey: { in: extraIssueKeys },
+        },
+      });
+
+      // 2. Comments on these issues
+      await prisma.comment.deleteMany({
+        where: { issueId: { in: extraIssueIds } },
+      });
+
+      // 3. Activities on these issues
+      await prisma.activity.deleteMany({
+        where: { issueId: { in: extraIssueIds } },
+      });
+
+      // 4. IssueWatchers on these issues
+      await prisma.issueWatcher.deleteMany({
+        where: { issueId: { in: extraIssueIds } },
+      });
+
+      // 5. IssueEvents on these issues
+      await prisma.issueEvent.deleteMany({
+        where: { issueId: { in: extraIssueIds } },
+      });
+
+      // 6. SprintIssueResults on these issues
+      await prisma.sprintIssueResult.deleteMany({
+        where: { issueId: { in: extraIssueIds } },
+      });
+
+      // 7. Subtasks / child issues under these issues
+      await prisma.issue.deleteMany({
+        where: { parentId: { in: extraIssueIds } },
+      });
+
+      // 8. Delete the issues themselves
+      await prisma.issue.deleteMany({
+        where: { id: { in: extraIssueIds } },
+      });
+      console.log(`   Deleted ${extraIssueIds.length} visitor-created issues and their relations.`);
+    }
+
+    // Reset project issueCounter to 25
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { issueCounter: 25 },
+    });
+    project.issueCounter = 25;
+  }
+
+  // Seed sample labels for demo project (Idempotent)
+  const sampleLabels = [
+    { name: "frontend", color: "#0052CC" },
+    { name: "backend", color: "#00875A" },
+    { name: "bug", color: "#DE350B" },
+  ];
+
+  for (const label of sampleLabels) {
+    await prisma.label.upsert({
+      where: {
+        projectId_name: {
+          projectId: project.id,
+          name: label.name,
+        },
+      },
+      update: {
+        color: label.color,
+      },
+      create: {
+        name: label.name,
+        color: label.color,
+        projectId: project.id,
+      },
+    });
+  }
+  console.log("🏷️ Seeded sample labels: frontend, backend, bug");
+
   const statusMap = new Map(project.statuses.map((s) => [s.name, s.id]));
 
   // 3. Create Sprints 1 to 4 (Historical Closed) and Sprint 5 (Active)
   console.log("📊 Seeding historical Agile sprints...");
+
+  // Relative Sprint Timelines
+  // Sprint 5 (ACTIVE SPRINT): Started 5 days ago, ends 9 days from now (14-day sprint)
+  const now = new Date();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  const sprint5Start = new Date(now.getTime() - 5 * ONE_DAY_MS);
+  const sprint5End = new Date(now.getTime() + 9 * ONE_DAY_MS);
+
+  // Sprints 1 to 4 (CLOSED): Sequential backwards in 14-day increments
+  // Sprint 4: 19 days ago to 5 days ago
+  const sprint4End = new Date(sprint5Start.getTime() - 1000);
+  const sprint4Start = new Date(sprint5Start.getTime() - 14 * ONE_DAY_MS);
+
+  // Sprint 3: 33 days ago to 19 days ago
+  const sprint3End = new Date(sprint4Start.getTime() - 1000);
+  const sprint3Start = new Date(sprint4Start.getTime() - 14 * ONE_DAY_MS);
+
+  // Sprint 2: 47 days ago to 33 days ago
+  const sprint2End = new Date(sprint3Start.getTime() - 1000);
+  const sprint2Start = new Date(sprint3Start.getTime() - 14 * ONE_DAY_MS);
+
+  // Sprint 1: 61 days ago to 47 days ago
+  const sprint1End = new Date(sprint2Start.getTime() - 1000);
+  const sprint1Start = new Date(sprint2Start.getTime() - 14 * ONE_DAY_MS);
 
   // Sprint 1 (CLOSED)
   const sprint1 = await prisma.sprint.upsert({
     where: { id: "seed-sprint-1" },
     update: {
       state: "CLOSED",
+      startDate: sprint1Start,
+      endDate: sprint1End,
+      startedAt: sprint1Start,
+      closedAt: sprint1End,
       committedPoints: 18,
       committedIssues: 5,
       completedPoints: 15,
@@ -106,10 +315,10 @@ async function main() {
       goal: "Establish core project scaffolding, authentication, and database schemas.",
       state: "CLOSED",
       projectId: project.id,
-      startDate: new Date("2026-09-01T00:00:00Z"),
-      endDate: new Date("2026-09-14T23:59:59Z"),
-      startedAt: new Date("2026-09-01T08:00:00Z"),
-      closedAt: new Date("2026-09-14T17:00:00Z"),
+      startDate: sprint1Start,
+      endDate: sprint1End,
+      startedAt: sprint1Start,
+      closedAt: sprint1End,
       committedPoints: 18,
       committedIssues: 5,
       completedPoints: 15,
@@ -118,7 +327,7 @@ async function main() {
         good: "Database migrations and Prisma schemas setup completed ahead of schedule.",
         toImprove: "Session token expiry edge cases required last-minute hotfixes.",
         actionItems: "Automate token refresh unit tests before next milestone.",
-        updatedAt: "2026-09-14T18:00:00Z",
+        updatedAt: sprint1End.toISOString(),
         updatedBy: "Alex Morgan",
       },
     },
@@ -129,6 +338,10 @@ async function main() {
     where: { id: "seed-sprint-2" },
     update: {
       state: "CLOSED",
+      startDate: sprint2Start,
+      endDate: sprint2End,
+      startedAt: sprint2Start,
+      closedAt: sprint2End,
       committedPoints: 22,
       committedIssues: 6,
       completedPoints: 12,
@@ -140,10 +353,10 @@ async function main() {
       goal: "Implement smooth @dnd-kit Kanban interaction and optimistic UI state transitions.",
       state: "CLOSED",
       projectId: project.id,
-      startDate: new Date("2026-09-15T00:00:00Z"),
-      endDate: new Date("2026-09-28T23:59:59Z"),
-      startedAt: new Date("2026-09-15T08:00:00Z"),
-      closedAt: new Date("2026-09-28T17:00:00Z"),
+      startDate: sprint2Start,
+      endDate: sprint2End,
+      startedAt: sprint2Start,
+      closedAt: sprint2End,
       committedPoints: 22,
       committedIssues: 6,
       completedPoints: 12,
@@ -152,7 +365,7 @@ async function main() {
         good: "Core drag-and-drop mechanics feel fluid with @dnd-kit.",
         toImprove: "Encountered position collision bugs when dragging cards to bottom of dense columns; 3 items carried over.",
         actionItems: "Refactor column fractional position indexing to prevent collisions.",
-        updatedAt: "2026-09-28T18:00:00Z",
+        updatedAt: sprint2End.toISOString(),
         updatedBy: "Sarah Connor",
       },
     },
@@ -163,6 +376,10 @@ async function main() {
     where: { id: "seed-sprint-3" },
     update: {
       state: "CLOSED",
+      startDate: sprint3Start,
+      endDate: sprint3End,
+      startedAt: sprint3Start,
+      closedAt: sprint3End,
       committedPoints: 20,
       committedIssues: 5,
       completedPoints: 23,
@@ -174,10 +391,10 @@ async function main() {
       goal: "Deliver persistent notifications, activity stream logging, and watcher subscriptions.",
       state: "CLOSED",
       projectId: project.id,
-      startDate: new Date("2026-09-29T00:00:00Z"),
-      endDate: new Date("2026-10-12T23:59:59Z"),
-      startedAt: new Date("2026-09-29T08:00:00Z"),
-      closedAt: new Date("2026-10-12T17:00:00Z"),
+      startDate: sprint3Start,
+      endDate: sprint3End,
+      startedAt: sprint3Start,
+      closedAt: sprint3End,
       committedPoints: 20,
       committedIssues: 5,
       completedPoints: 23,
@@ -186,7 +403,7 @@ async function main() {
         good: "Resolved the position collision blocker from Sprint 2 and delivered an urgent reconnect backoff patch mid-sprint!",
         toImprove: "Notification polling frequency caused high CPU usage on staging.",
         actionItems: "Adopt exponential backoff for notification polling.",
-        updatedAt: "2026-10-12T18:00:00Z",
+        updatedAt: sprint3End.toISOString(),
         updatedBy: "David Chen",
       },
     },
@@ -197,6 +414,10 @@ async function main() {
     where: { id: "seed-sprint-4" },
     update: {
       state: "CLOSED",
+      startDate: sprint4Start,
+      endDate: sprint4End,
+      startedAt: sprint4Start,
+      closedAt: sprint4End,
       committedPoints: 24,
       committedIssues: 6,
       completedPoints: 21,
@@ -208,10 +429,10 @@ async function main() {
       goal: "Add rich filter modal, quick filter chips, and user-saved view bookmarks.",
       state: "CLOSED",
       projectId: project.id,
-      startDate: new Date("2026-10-13T00:00:00Z"),
-      endDate: new Date("2026-10-26T23:59:59Z"),
-      startedAt: new Date("2026-10-13T08:00:00Z"),
-      closedAt: new Date("2026-10-26T17:00:00Z"),
+      startDate: sprint4Start,
+      endDate: sprint4End,
+      startedAt: sprint4Start,
+      closedAt: sprint4End,
       committedPoints: 24,
       committedIssues: 6,
       completedPoints: 21,
@@ -220,25 +441,21 @@ async function main() {
         good: "Search modal with full keyboard shortcuts (Ctrl+K) is delightful.",
         toImprove: "CSV export had encoding issues with non-ASCII characters; postponed to backlog.",
         actionItems: "Use UTF-8 BOM encoding when implementing CSV export.",
-        updatedAt: "2026-10-26T18:00:00Z",
+        updatedAt: sprint4End.toISOString(),
         updatedBy: "Alex Morgan",
       },
     },
   });
 
   // Sprint 5 (ACTIVE SPRINT)
-  // Started 4 days ago; initial committed = 13 pts (4 issues), 1 issue added mid-sprint on Day 2 (8 pts)
-  const now = new Date();
-  const sprintStart = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000); // 4 days ago
-  const sprintEnd = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000); // 10 days from now
-
+  // Started 5 days ago; initial committed = 13 pts (4 issues), 1 issue added mid-sprint on Day 2 (8 pts)
   const sprint5 = await prisma.sprint.upsert({
     where: { id: "seed-sprint-5" },
     update: {
       state: "ACTIVE",
-      startDate: sprintStart,
-      endDate: sprintEnd,
-      startedAt: sprintStart,
+      startDate: sprint5Start,
+      endDate: sprint5End,
+      startedAt: sprint5Start,
       committedPoints: 13,
       committedIssues: 4,
     },
@@ -248,9 +465,9 @@ async function main() {
       goal: "Implement Burndown, Velocity chart, and Sprint Report for data-driven retrospective analysis.",
       state: "ACTIVE",
       projectId: project.id,
-      startDate: sprintStart,
-      endDate: sprintEnd,
-      startedAt: sprintStart,
+      startDate: sprint5Start,
+      endDate: sprint5End,
+      startedAt: sprint5Start,
       committedPoints: 13,
       committedIssues: 4,
     },
@@ -726,11 +943,12 @@ async function main() {
     where: { sprintId: sprint5.id },
   });
 
-  const day0 = sprintStart; // 4 days ago
-  const day1 = new Date(day0.getTime() + 1 * 24 * 60 * 60 * 1000); // 3 days ago
-  const day2 = new Date(day0.getTime() + 2 * 24 * 60 * 60 * 1000); // 2 days ago
-  const day3 = new Date(day0.getTime() + 3 * 24 * 60 * 60 * 1000); // 1 day ago
-  const day4 = now; // Today
+  const day0 = sprint5Start; // 5 days ago
+  const day1 = new Date(day0.getTime() + 1 * ONE_DAY_MS); // 4 days ago
+  const day2 = new Date(day0.getTime() + 2 * ONE_DAY_MS); // 3 days ago
+  const day3 = new Date(day0.getTime() + 3 * ONE_DAY_MS); // 2 days ago
+  const day4 = new Date(day0.getTime() + 4 * ONE_DAY_MS); // 1 day ago
+  const day5 = now; // Today
 
   // Sprint 5 initial committed issues: JIRA-1 (5), JIRA-2 (3), JIRA-3 (2), JIRA-5 (3) -> Total: 13 pts
   const committedKeys = ["JIRA-1", "JIRA-2", "JIRA-3", "JIRA-5"];
@@ -823,6 +1041,15 @@ async function main() {
       },
     });
 
+    // Clean up existing status-changed activities on JIRA-2 for seed idempotency
+    await prisma.activity.deleteMany({
+      where: {
+        issueId: recJira2.id,
+        action: "STATUS_CHANGED",
+        field: "status",
+      },
+    });
+
     await prisma.activity.create({
       data: {
         action: "STATUS_CHANGED",
@@ -836,7 +1063,7 @@ async function main() {
     });
   }
 
-  // Day 4 (Today): JIRA-2 is re-fixed and marked DONE again!
+  // Day 4: JIRA-2 is re-fixed and marked DONE again!
   if (recJira2) {
     await prisma.issueEvent.create({
       data: {
@@ -859,6 +1086,11 @@ async function main() {
         userId: alex.id,
         createdAt: day4,
       },
+    });
+
+    // Clean up existing comments on JIRA-2 for seed idempotency
+    await prisma.comment.deleteMany({
+      where: { issueId: recJira2.id },
     });
 
     // Add comments telling the reopen story
@@ -887,7 +1119,7 @@ async function main() {
     });
   }
 
-  // Day 4 (Today): JIRA-1 completed (5 pts Done)
+  // Day 5 (Today): JIRA-1 completed (5 pts Done)
   const recJira1 = issueKeyToRecord.get("JIRA-1");
   if (recJira1) {
     await prisma.issueEvent.create({
@@ -897,10 +1129,73 @@ async function main() {
         eventType: "STATUS_CHANGED",
         category: "DONE",
         previousCategory: "TO_DO",
-        createdAt: day4,
+        createdAt: day5,
       },
     });
   }
+
+  // 7. Verification: Validate Sprint 5 metrics and balance invariant using common reporting engine
+  console.log("🔍 Verifying Sprint 5 metrics with computeAgileSprintMetrics...");
+  const seededSprint5 = await prisma.sprint.findUniqueOrThrow({
+    where: { id: "seed-sprint-5" },
+    include: {
+      issues: {
+        include: {
+          status: true,
+        },
+      },
+    },
+  });
+
+  const sprint5Events = await prisma.issueEvent.findMany({
+    where: { sprintId: seededSprint5.id },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const metrics = computeAgileSprintMetrics({
+    sprint: seededSprint5,
+    events: sprint5Events,
+    eligibleIssues: seededSprint5.issues,
+    metric: "points",
+  });
+
+  const { committed, scopeAdded, removed, completed, remaining } = metrics.summary;
+
+  const expected = {
+    committed: 13,
+    scopeAdded: 8,
+    removed: 0,
+    completed: 8,
+    remaining: 13,
+  };
+
+  const isIdentical =
+    committed === expected.committed &&
+    scopeAdded === expected.scopeAdded &&
+    removed === expected.removed &&
+    completed === expected.completed &&
+    remaining === expected.remaining;
+
+  const isBalanceInvariantValid =
+    remaining === committed + scopeAdded - removed - completed;
+
+  if (!isIdentical || !isBalanceInvariantValid) {
+    console.error("❌ Sprint 5 metrics verification failed!");
+    console.error(
+      `   Expected: committed=${expected.committed}, scopeAdded=${expected.scopeAdded}, removed=${expected.removed}, completed=${expected.completed}, remaining=${expected.remaining}`
+    );
+    console.error(
+      `   Actual:   committed=${committed}, scopeAdded=${scopeAdded}, removed=${removed}, completed=${completed}, remaining=${remaining}`
+    );
+    console.error(
+      `   Balance invariant satisfied: ${isBalanceInvariantValid} (${remaining} === ${committed} + ${scopeAdded} - ${removed} - ${completed})`
+    );
+    process.exit(1);
+  }
+
+  console.log(
+    `✅ Sprint 5 metrics verified: committed=${committed}, scopeAdded=${scopeAdded}, removed=${removed}, completed=${completed}, remaining=${remaining} (Balance invariant satisfied: ${remaining} = ${committed} + ${scopeAdded} - ${removed} - ${completed})`
+  );
 
   console.log("🎫 Successfully seeded historical sprints (1-4 closed, 5 active)!");
   console.log("✅ Seed completed with 100% mathematical consistency across Burndown, Sprint Report, and Velocity!");

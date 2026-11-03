@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Project, Issue, Sprint, User, IssueType, PriorityLevel } from "../types";
 import { api, isSessionExpired, isSessionExpiredError, getErrorMessage } from "../lib/api";
 import { useToastStore } from "../store/toast";
@@ -396,6 +397,180 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
     setTypeFilter("ALL");
   };
 
+  // Move-to-Sprint popover rendered via Portal to escape any overflow clipping
+  const MoveToSprintButton: React.FC<{
+    issue: Issue;
+    sprints: Sprint[];
+    isOpen: boolean;
+    onToggle: () => void;
+    onClose: () => void;
+    onMove: (issue: Issue, targetSprintId: string | null) => void;
+  }> = ({ issue, sprints, isOpen, onToggle, onClose, onMove }) => {
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+
+    const updatePosition = useCallback(() => {
+      if (!buttonRef.current) return;
+      const rect = buttonRef.current.getBoundingClientRect();
+
+      // If button is offscreen, dismiss
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        onClose();
+        return;
+      }
+
+      const DROPDOWN_WIDTH = 224;
+      let left = rect.right - DROPDOWN_WIDTH;
+      if (left < 10) left = 10;
+      if (left + DROPDOWN_WIDTH > window.innerWidth - 10) {
+        left = window.innerWidth - DROPDOWN_WIDTH - 10;
+      }
+
+      const ESTIMATED_HEIGHT = 190;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      if (spaceBelow < ESTIMATED_HEIGHT && spaceAbove > spaceBelow) {
+        // Open upwards if not enough space below
+        setCoords({
+          bottom: window.innerHeight - rect.top + 6,
+          left,
+        });
+      } else {
+        // Open downwards
+        setCoords({
+          top: rect.bottom + 6,
+          left,
+        });
+      }
+    }, [onClose]);
+
+    useLayoutEffect(() => {
+      if (isOpen) {
+        updatePosition();
+      }
+    }, [isOpen, updatePosition]);
+
+    useEffect(() => {
+      if (!isOpen) return;
+
+      const handleScrollOrResize = () => {
+        updatePosition();
+      };
+
+      window.addEventListener("scroll", handleScrollOrResize, true);
+      window.addEventListener("resize", handleScrollOrResize);
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          onClose();
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+
+      return () => {
+        window.removeEventListener("scroll", handleScrollOrResize, true);
+        window.removeEventListener("resize", handleScrollOrResize);
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [isOpen, updatePosition, onClose]);
+
+    const availableSprints = sprints.filter(
+      (s) => s.state !== "CLOSED" && s.id !== issue.sprintId
+    );
+
+    return (
+      <div className="relative">
+        <button
+          ref={buttonRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          title="Move this work item"
+          className={`p-1 rounded transition ${isOpen
+            ? "bg-slate-200 dark:bg-jira-dark-hover text-jira-blue dark:text-blue-400 shadow-xs"
+            : "text-slate-400 hover:text-jira-text dark:hover:text-jira-dark-text hover:bg-slate-200/60 dark:hover:bg-jira-dark-hover"
+            }`}
+        >
+          <ArrowRightLeft size={13} />
+        </button>
+
+        {isOpen &&
+          coords &&
+          createPortal(
+            <div className="fixed inset-0 z-[9998]">
+              {/* Transparent backdrop to catch outside clicks */}
+              <div
+                className="fixed inset-0 bg-transparent"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+              />
+
+              {/* Floating Popover anchored in front of task row */}
+              <div
+                style={{
+                  position: "fixed",
+                  left: coords.left,
+                  top: coords.top !== undefined ? coords.top : "auto",
+                  bottom: coords.bottom !== undefined ? coords.bottom : "auto",
+                  width: 224,
+                  zIndex: 9999,
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white dark:bg-jira-dark-surface rounded-lg shadow-2xl border border-slate-200 dark:border-jira-dark-border py-1 text-xs animate-in fade-in-50 zoom-in-95 duration-100"
+              >
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-jira-subtle dark:text-slate-400 border-b border-slate-100 dark:border-jira-dark-border flex items-center justify-between">
+                  <span>{t.backlog.moveToSprint}</span>
+                  <span className="font-mono text-[9px] text-slate-400">{issue.key}</span>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto py-0.5">
+                  {availableSprints.length === 0 && !issue.sprintId ? (
+                    <div className="px-3 py-3 text-center text-[11px] text-slate-400 italic">
+                      Tidak ada sprint aktif atau rencana
+                    </div>
+                  ) : (
+                    availableSprints.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => onMove(issue, s.id)}
+                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-jira-dark-hover text-jira-text dark:text-jira-dark-text flex items-center justify-between gap-1 transition"
+                      >
+                        <span className="truncate">{s.name}</span>
+                        {s.state === "ACTIVE" && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                            Aktif
+                          </span>
+                        )}
+                        {s.state === "FUTURE" && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            Rencana
+                          </span>
+                        )}
+                      </button>
+                    ))
+                  )}
+
+                  {issue.sprintId && (
+                    <button
+                      onClick={() => onMove(issue, null)}
+                      className="w-full text-left px-3 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-400 flex items-center gap-1.5 border-t border-slate-100 dark:border-jira-dark-border transition font-medium"
+                    >
+                      <span>{t.backlog.moveToBacklog}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+      </div>
+    );
+  };
+
   // Renders a single issue row
   const renderIssueRow = (issue: Issue) => {
     const isDone = issue.status?.category === "DONE";
@@ -404,9 +579,8 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
     return (
       <div
         key={issue.id}
-        className={`group flex items-center justify-between gap-3 px-3.5 py-2.5 bg-white dark:bg-jira-dark-card hover:bg-slate-50/80 dark:hover:bg-jira-dark-hover border-b border-slate-100 dark:border-jira-dark-border last:border-b-0 last:rounded-b-xl transition select-none text-xs ${
-          isDone ? "opacity-75" : ""
-        } ${movingIssueId === issue.id ? "relative z-30" : ""}`}
+        className={`group flex items-center justify-between gap-3 px-3.5 py-2.5 bg-white dark:bg-jira-dark-card hover:bg-slate-50/80 dark:hover:bg-jira-dark-hover border-b border-slate-100 dark:border-jira-dark-border last:border-b-0 last:rounded-b-xl transition select-none text-xs ${isDone ? "opacity-75" : ""
+          } ${movingIssueId === issue.id ? "relative z-30" : ""}`}
       >
         {/* Left: Type, Key, Title */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -423,9 +597,8 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
 
           <span
             onClick={() => handleOpenDetail(issue)}
-            className={`font-medium text-jira-text dark:text-jira-dark-text truncate cursor-pointer hover:text-jira-blue dark:hover:text-blue-400 transition ${
-              isDone ? "line-through text-slate-500 dark:text-slate-400" : ""
-            }`}
+            className={`font-medium text-jira-text dark:text-jira-dark-text truncate cursor-pointer hover:text-jira-blue dark:hover:text-blue-400 transition ${isDone ? "line-through text-slate-500 dark:text-slate-400" : ""
+              }`}
           >
             {issue.title}
           </span>
@@ -443,9 +616,8 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
           {issue.children && issue.children.length > 0 && (
             <span
               className="flex items-center gap-1 text-[10px] font-bold text-jira-subtle dark:text-jira-dark-subtle bg-slate-100 dark:bg-jira-dark-surface px-1.5 py-0.2 rounded border border-slate-200 dark:border-jira-dark-border ml-1 flex-shrink-0"
-              title={`Subtasks: ${
-                issue.children.filter((c) => c.status?.category === "DONE").length
-              } of ${issue.children.length} completed`}
+              title={`Subtasks: ${issue.children.filter((c) => c.status?.category === "DONE").length
+                } of ${issue.children.length} completed`}
             >
               <CheckSquare size={10} className="text-slate-500 dark:text-jira-dark-subtle" />
               <span>
@@ -502,39 +674,37 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
           {/* Status Lozenge */}
           <div className="w-24 flex-shrink-0">
             <span
-              className={`inline-block w-full text-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider truncate border ${
-                isDone
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
-                  : /review/i.test(issue.status?.name || "")
+              className={`inline-block w-full text-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider truncate border ${isDone
+                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
+                : /review/i.test(issue.status?.name || "")
                   ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/60"
                   : isInProgress
-                  ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60"
-                  : "bg-slate-100 dark:bg-jira-dark-surface text-slate-600 dark:text-slate-300 border-slate-200 dark:border-jira-dark-border"
-              }`}
+                    ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60"
+                    : "bg-slate-100 dark:bg-jira-dark-surface text-slate-600 dark:text-slate-300 border-slate-200 dark:border-jira-dark-border"
+                }`}
             >
               {issue.status?.name || "To Do"}
             </span>
           </div>
 
           {/* Move to Sprint dropdown button */}
+          Updated upstream
           <div className="relative move-sprint-trigger">
             <button
               onClick={(e) => handleToggleMoveMenu(e, issue.id)}
               title="Move this work item"
-              className={`p-1 rounded text-slate-400 hover:text-jira-text dark:hover:text-jira-dark-text hover:bg-slate-200/60 dark:hover:bg-jira-dark-hover transition ${
-                movingIssueId === issue.id
-                  ? "bg-slate-200/70 dark:bg-jira-dark-hover text-jira-text dark:text-jira-dark-text"
-                  : ""
-              }`}
+              className={`p-1 rounded text-slate-400 hover:text-jira-text dark:hover:text-jira-dark-text hover:bg-slate-200/60 dark:hover:bg-jira-dark-hover transition ${movingIssueId === issue.id
+                ? "bg-slate-200/70 dark:bg-jira-dark-hover text-jira-text dark:text-jira-dark-text"
+                : ""
+                }`}
             >
               <ArrowRightLeft size={13} />
             </button>
 
             {movingIssueId === issue.id && (
               <div
-                className={`move-sprint-dropdown absolute right-0 ${
-                  movingPlacement === "top" ? "bottom-full mb-1.5" : "top-full mt-1.5"
-                } w-56 bg-white dark:bg-jira-dark-card rounded-lg shadow-xl border border-jira-border dark:border-jira-dark-border py-1 z-50 text-xs animate-in fade-in duration-150`}
+                className={`move-sprint-dropdown absolute right-0 ${movingPlacement === "top" ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                  } w-56 bg-white dark:bg-jira-dark-card rounded-lg shadow-xl border border-jira-border dark:border-jira-dark-border py-1 z-50 text-xs animate-in fade-in duration-150`}
               >
                 <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-jira-subtle dark:text-slate-400 border-b border-slate-100 dark:border-jira-dark-border flex items-center justify-between">
                   <span>{t.backlog.moveToSprint}</span>
@@ -586,6 +756,18 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
               </div>
             )}
           </div>
+
+          <MoveToSprintButton
+            issue={issue}
+            sprints={sprints}
+            isOpen={movingIssueId === issue.id}
+            onToggle={() =>
+              setMovingIssueId((prev) => (prev === issue.id ? null : issue.id))
+            }
+            onClose={() => setMovingIssueId(null)}
+            onMove={handleMoveIssueToSprint}
+          />
+          Stashed changes
         </div>
       </div>
     );
@@ -735,69 +917,66 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
 
       {/* Filter Toolbar */}
       <div className="px-6 py-2.5 border-b border-jira-border/60 dark:border-jira-dark-border bg-white dark:bg-jira-dark-bg flex flex-wrap items-center gap-2.5 text-xs flex-shrink-0">
-          {/* Search */}
-          <div className="relative w-52 sm:w-60">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-jira-subtle dark:text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search items in sprint & backlog..."
-              className="w-full pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text outline-none focus:bg-white dark:focus:bg-jira-dark-card focus:border-jira-blue transition"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          {/* Type Dropdown */}
-          <TypeFilterDropdown
-            selectedType={typeFilter as any}
-            onSelectType={(newType) => setTypeFilter(newType)}
+        {/* Search */}
+        <div className="relative w-52 sm:w-60">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-jira-subtle dark:text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search items in sprint & backlog..."
+            className="w-full pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text outline-none focus:bg-white dark:focus:bg-jira-dark-card focus:border-jira-blue transition"
           />
-
-          {/* Assignee Filter Chips */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-jira-dark-card p-0.5 rounded-md border border-slate-200 dark:border-jira-dark-border">
+          {search && (
             <button
-              onClick={() => setAssigneeFilter("ALL")}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                assigneeFilter === "ALL" ? "bg-white dark:bg-jira-dark-surface text-jira-text dark:text-jira-dark-text shadow-xs" : "text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white"
-              }`}
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
             >
-              All
-            </button>
-            <button
-              onClick={() => setAssigneeFilter("MY_ISSUES")}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                assigneeFilter === "MY_ISSUES" ? "bg-white dark:bg-jira-dark-surface text-jira-blue dark:text-blue-400 shadow-xs font-semibold" : "text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white"
-              }`}
-            >
-              My issues
-            </button>
-            <button
-              onClick={() => setAssigneeFilter("UNASSIGNED")}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                assigneeFilter === "UNASSIGNED" ? "bg-white dark:bg-jira-dark-surface text-jira-text dark:text-jira-dark-text shadow-xs" : "text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white"
-              }`}
-            >
-              Unassigned
-            </button>
-          </div>
-
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white underline text-xs font-medium ml-1"
-            >
-              {t.common.clearFilter}
+              <X size={13} />
             </button>
           )}
         </div>
+
+        {/* Type Dropdown */}
+        <TypeFilterDropdown
+          selectedType={typeFilter as any}
+          onSelectType={(newType) => setTypeFilter(newType)}
+        />
+
+        {/* Assignee Filter Chips */}
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-jira-dark-card p-0.5 rounded-md border border-slate-200 dark:border-jira-dark-border">
+          <button
+            onClick={() => setAssigneeFilter("ALL")}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition ${assigneeFilter === "ALL" ? "bg-white dark:bg-jira-dark-surface text-jira-text dark:text-jira-dark-text shadow-xs" : "text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white"
+              }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setAssigneeFilter("MY_ISSUES")}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition ${assigneeFilter === "MY_ISSUES" ? "bg-white dark:bg-jira-dark-surface text-jira-blue dark:text-blue-400 shadow-xs font-semibold" : "text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white"
+              }`}
+          >
+            My issues
+          </button>
+          <button
+            onClick={() => setAssigneeFilter("UNASSIGNED")}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition ${assigneeFilter === "UNASSIGNED" ? "bg-white dark:bg-jira-dark-surface text-jira-text dark:text-jira-dark-text shadow-xs" : "text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white"
+              }`}
+          >
+            Unassigned
+          </button>
+        </div>
+
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="text-jira-subtle dark:text-slate-400 hover:text-jira-text dark:hover:text-white underline text-xs font-medium ml-1"
+          >
+            {t.common.clearFilter}
+          </button>
+        )}
+      </div>
 
       {/* Main Scrollable Content: Sprints and Backlog Pool */}
       <div className="flex-1 overflow-auto bg-[#F4F5F7] dark:bg-jira-dark-bg p-6 space-y-6">
