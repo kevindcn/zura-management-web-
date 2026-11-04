@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
+import React, { useState, useEffect, useMemo } from "react";
 import { Project, Issue, Sprint, User, IssueType, PriorityLevel } from "../types";
 import { api, isSessionExpired, isSessionExpiredError, getErrorMessage } from "../lib/api";
 import { useToastStore } from "../store/toast";
@@ -397,179 +396,6 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
     setTypeFilter("ALL");
   };
 
-  // Move-to-Sprint popover rendered via Portal to escape any overflow clipping
-  const MoveToSprintButton: React.FC<{
-    issue: Issue;
-    sprints: Sprint[];
-    isOpen: boolean;
-    onToggle: () => void;
-    onClose: () => void;
-    onMove: (issue: Issue, targetSprintId: string | null) => void;
-  }> = ({ issue, sprints, isOpen, onToggle, onClose, onMove }) => {
-    const buttonRef = useRef<HTMLButtonElement>(null);
-    const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
-
-    const updatePosition = useCallback(() => {
-      if (!buttonRef.current) return;
-      const rect = buttonRef.current.getBoundingClientRect();
-
-      // If button is offscreen, dismiss
-      if (rect.bottom < 0 || rect.top > window.innerHeight) {
-        onClose();
-        return;
-      }
-
-      const DROPDOWN_WIDTH = 224;
-      let left = rect.right - DROPDOWN_WIDTH;
-      if (left < 10) left = 10;
-      if (left + DROPDOWN_WIDTH > window.innerWidth - 10) {
-        left = window.innerWidth - DROPDOWN_WIDTH - 10;
-      }
-
-      const ESTIMATED_HEIGHT = 190;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-
-      if (spaceBelow < ESTIMATED_HEIGHT && spaceAbove > spaceBelow) {
-        // Open upwards if not enough space below
-        setCoords({
-          bottom: window.innerHeight - rect.top + 6,
-          left,
-        });
-      } else {
-        // Open downwards
-        setCoords({
-          top: rect.bottom + 6,
-          left,
-        });
-      }
-    }, [onClose]);
-
-    useLayoutEffect(() => {
-      if (isOpen) {
-        updatePosition();
-      }
-    }, [isOpen, updatePosition]);
-
-    useEffect(() => {
-      if (!isOpen) return;
-
-      const handleScrollOrResize = () => {
-        updatePosition();
-      };
-
-      window.addEventListener("scroll", handleScrollOrResize, true);
-      window.addEventListener("resize", handleScrollOrResize);
-
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") {
-          onClose();
-        }
-      };
-      window.addEventListener("keydown", handleKeyDown);
-
-      return () => {
-        window.removeEventListener("scroll", handleScrollOrResize, true);
-        window.removeEventListener("resize", handleScrollOrResize);
-        window.removeEventListener("keydown", handleKeyDown);
-      };
-    }, [isOpen, updatePosition, onClose]);
-
-    const availableSprints = sprints.filter(
-      (s) => s.state !== "CLOSED" && s.id !== issue.sprintId
-    );
-
-    return (
-      <div className="relative">
-        <button
-          ref={buttonRef}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle();
-          }}
-          title="Move this work item"
-          className={`p-1 rounded transition ${isOpen
-            ? "bg-slate-200 dark:bg-jira-dark-hover text-jira-blue dark:text-blue-400 shadow-xs"
-            : "text-slate-400 hover:text-jira-text dark:hover:text-jira-dark-text hover:bg-slate-200/60 dark:hover:bg-jira-dark-hover"
-            }`}
-        >
-          <ArrowRightLeft size={13} />
-        </button>
-
-        {isOpen &&
-          coords &&
-          createPortal(
-            <div className="fixed inset-0 z-[9998]">
-              {/* Transparent backdrop to catch outside clicks */}
-              <div
-                className="fixed inset-0 bg-transparent"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClose();
-                }}
-              />
-
-              {/* Floating Popover anchored in front of task row */}
-              <div
-                style={{
-                  position: "fixed",
-                  left: coords.left,
-                  top: coords.top !== undefined ? coords.top : "auto",
-                  bottom: coords.bottom !== undefined ? coords.bottom : "auto",
-                  width: 224,
-                  zIndex: 9999,
-                }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white dark:bg-jira-dark-surface rounded-lg shadow-2xl border border-slate-200 dark:border-jira-dark-border py-1 text-xs animate-in fade-in-50 zoom-in-95 duration-100"
-              >
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-jira-subtle dark:text-slate-400 border-b border-slate-100 dark:border-jira-dark-border flex items-center justify-between">
-                  <span>{t.backlog.moveToSprint}</span>
-                  <span className="font-mono text-[9px] text-slate-400">{issue.key}</span>
-                </div>
-
-                <div className="max-h-60 overflow-y-auto py-0.5">
-                  {availableSprints.length === 0 && !issue.sprintId ? (
-                    <div className="px-3 py-3 text-center text-[11px] text-slate-400 italic">
-                      Tidak ada sprint aktif atau rencana
-                    </div>
-                  ) : (
-                    availableSprints.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => onMove(issue, s.id)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-jira-dark-hover text-jira-text dark:text-jira-dark-text flex items-center justify-between gap-1 transition"
-                      >
-                        <span className="truncate">{s.name}</span>
-                        {s.state === "ACTIVE" && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
-                            Aktif
-                          </span>
-                        )}
-                        {s.state === "FUTURE" && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                            Rencana
-                          </span>
-                        )}
-                      </button>
-                    ))
-                  )}
-
-                  {issue.sprintId && (
-                    <button
-                      onClick={() => onMove(issue, null)}
-                      className="w-full text-left px-3 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-700 dark:text-amber-400 flex items-center gap-1.5 border-t border-slate-100 dark:border-jira-dark-border transition font-medium"
-                    >
-                      <span>{t.backlog.moveToBacklog}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
-      </div>
-    );
-  };
 
   // Renders a single issue row
   const renderIssueRow = (issue: Issue) => {
@@ -688,7 +514,6 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
           </div>
 
           {/* Move to Sprint dropdown button */}
-          Updated upstream
           <div className="relative move-sprint-trigger">
             <button
               onClick={(e) => handleToggleMoveMenu(e, issue.id)}
@@ -757,17 +582,6 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
             )}
           </div>
 
-          <MoveToSprintButton
-            issue={issue}
-            sprints={sprints}
-            isOpen={movingIssueId === issue.id}
-            onToggle={() =>
-              setMovingIssueId((prev) => (prev === issue.id ? null : issue.id))
-            }
-            onClose={() => setMovingIssueId(null)}
-            onMove={handleMoveIssueToSprint}
-          />
-          Stashed changes
         </div>
       </div>
     );
