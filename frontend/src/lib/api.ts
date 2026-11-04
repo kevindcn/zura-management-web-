@@ -56,7 +56,7 @@ export class SessionExpiredError extends Error {
   readonly isSessionExpired = true;
   readonly status = 401;
 
-  constructor(message = "Sesi Anda berakhir, silakan masuk kembali.") {
+  constructor(message = "Your session has expired, please log in again.") {
     super(message);
     this.name = "SessionExpiredError";
   }
@@ -127,11 +127,11 @@ export async function apiRequest<T>(
       throw new SessionExpiredError();
     }
 
-    throw new ApiError(data?.message || "Email atau kata sandi tidak valid.", 401);
+    throw new ApiError(data?.message || "Invalid email or password.", 401);
   }
 
   if (response.status === 403) {
-    throw new ApiError(data?.message || "Anda tidak punya izin untuk aksi ini", 403);
+    throw new ApiError(data?.message || "You do not have permission for this action", 403);
   }
 
   if (!response.ok) {
@@ -357,7 +357,7 @@ export const api = {
     }
 
     if (response.status === 403) {
-      throw new ApiError(data?.message || "Anda tidak punya izin untuk aksi ini", 403);
+      throw new ApiError(data?.message || "You do not have permission for this action", 403);
     }
 
     if (!response.ok) {

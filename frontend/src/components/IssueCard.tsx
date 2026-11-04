@@ -173,7 +173,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({
                   ? "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50"
                   : "text-jira-subtle dark:text-jira-dark-subtle bg-slate-50 dark:bg-jira-dark-column border border-slate-200 dark:border-jira-dark-border"
               }`}
-              title={`Due date: ${new Date(issue.dueDate).toLocaleDateString()}`}
+              title={`Due date: ${new Date(issue.dueDate).toLocaleDateString("en-US")}`}
             >
               <Calendar size={10} />
               <span>

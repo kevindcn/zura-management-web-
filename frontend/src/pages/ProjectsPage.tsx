@@ -30,7 +30,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         <div>
           <h1 className="text-2xl font-bold text-jira-text dark:text-jira-dark-text">{t.nav.projects}</h1>
           <p className="text-xs text-jira-subtle dark:text-jira-dark-subtle mt-1">
-            Kelola ruang kerja, work item, dan alur sprint tim Anda
+            {t.projects.subtitle}
           </p>
         </div>
         <button
@@ -53,12 +53,12 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
             type="text"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Cari project..."
+            placeholder={t.projects.searchPlaceholder}
             className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text outline-none focus:bg-white dark:focus:bg-jira-dark-card focus:border-jira-blue focus:ring-1 focus:ring-jira-blue transition"
           />
         </div>
         <div className="text-xs text-jira-subtle dark:text-jira-dark-subtle font-medium">
-          Menampilkan {filteredProjects.length} dari {projects.length} project
+          {t.projects.showingCount(filteredProjects.length, projects.length)}
         </div>
       </div>
 
@@ -91,19 +91,19 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 </h3>
 
                 <p className="text-xs text-jira-subtle dark:text-jira-dark-subtle line-clamp-2 mb-4 leading-relaxed">
-                  {project.description || "Ruang kerja pelacakan agile dan kanban tim."}
+                  {project.description || t.projects.defaultDesc}
                 </p>
               </div>
 
               <div className="pt-3 border-t border-slate-100 dark:border-jira-dark-border flex items-center justify-between text-xs text-jira-subtle dark:text-jira-dark-subtle">
                 <div className="flex items-center gap-1.5">
                   <Users size={14} />
-                  <span>{project.members?.length || 1} anggota</span>
+                  <span>{t.projects.membersCount(project.members?.length || 1)}</span>
                 </div>
 
                 <div className="flex items-center gap-1 font-semibold text-jira-text dark:text-jira-dark-text">
                   <CheckCircle2 size={14} className="text-emerald-600" />
-                  <span>{project._count?.issues ?? 0} item</span>
+                  <span>{t.projects.itemsCount(project._count?.issues ?? 0)}</span>
                 </div>
               </div>
             </div>
@@ -113,9 +113,9 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         {filteredProjects.length === 0 && (
           <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 dark:border-jira-dark-border rounded-lg">
             <FolderKanban size={36} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-            <p className="text-sm font-semibold text-jira-text dark:text-jira-dark-text">Project tidak ditemukan</p>
+            <p className="text-sm font-semibold text-jira-text dark:text-jira-dark-text">{t.projects.notFoundTitle}</p>
             <p className="text-xs text-jira-subtle dark:text-jira-dark-subtle mt-1 mb-4">
-              Mulai dengan membuat ruang kerja project baru.
+              {t.projects.notFoundDesc}
             </p>
             <button
               onClick={onOpenCreateModal}

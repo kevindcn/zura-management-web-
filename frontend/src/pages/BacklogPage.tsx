@@ -383,10 +383,10 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
   const formatDateRange = (start?: string | null, end?: string | null) => {
     if (!start && !end) return null;
     const format = (d: string) =>
-      new Date(d).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+      new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short" });
     if (start && end) return `${format(start)} – ${format(end)}`;
     if (start) return `Mulai ${format(start)}`;
-    return `Selesai ${format(end!)}`;
+    return t.backlog.sprintCompletedDate(format(end!));
   };
 
   const hasActiveFilters = Boolean(search || assigneeFilter !== "ALL" || typeFilter !== "ALL");
@@ -552,7 +552,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                         <span className="truncate">{s.name}</span>
                         {s.state === "ACTIVE" && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 flex-shrink-0">
-                            Aktif
+                            {t.backlog.statusActive}
                           </span>
                         )}
                       </button>
@@ -561,7 +561,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                   {/* Empty state if no sprints available */}
                   {sprints.filter((s) => s.state !== "CLOSED" && s.id !== issue.sprintId).length === 0 && !issue.sprintId && (
                     <div className="px-3 py-2 text-[11px] text-jira-subtle dark:text-slate-400 italic">
-                      Tidak ada sprint tujuan
+                      {t.backlog.noTargetSprint}
                     </div>
                   )}
 
@@ -818,7 +818,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                      SPRINT AKTIF
+                      {t.backlog.statusActiveBadge}
                     </span>
                     <h2 className="text-sm font-bold text-jira-text dark:text-jira-dark-text">
                       {activeSprint.name}
@@ -853,19 +853,19 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                     <div className="flex items-center gap-1 font-mono text-[11px] font-bold">
                       <span
                         className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-jira-dark-surface text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-jira-dark-border"
-                        title={`${pts.todo} poin To Do`}
+                        title={t.backlog.ptsTodo(pts.todo)}
                       >
                         {pts.todo}
                       </span>
                       <span
                         className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60"
-                        title={`${pts.inProgress} poin In Progress`}
+                        title={t.backlog.ptsInProgress(pts.inProgress)}
                       >
                         {pts.inProgress}
                       </span>
                       <span
                         className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
-                        title={`${pts.done} poin Selesai`}
+                        title={t.backlog.ptsDone(pts.done)}
                       >
                         {pts.done}
                       </span>
@@ -966,13 +966,13 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-jira-dark-card text-slate-700 dark:text-slate-300">
-                        RENCANA
+                        {t.backlog.statusPlannedBadge}
                       </span>
                       <h3 className="text-xs font-bold text-jira-text dark:text-jira-dark-text">
                         {sprint.name}
                       </h3>
                       <span className="text-[11px] text-jira-subtle dark:text-slate-400">
-                        ({items.length} item)
+                        ({t.projects.itemsCount(items.length)})
                       </span>
                     </div>
 
@@ -998,7 +998,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                 <div className="flex items-center gap-3">
                   {/* Total Story Points */}
                   <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-jira-dark-surface px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-jira-dark-border">
-                    {pts.total} poin
+                    {t.backlog.storyPointsTotal(pts.total)}
                   </span>
 
                   {/* Mulai Sprint Button */}
@@ -1008,7 +1008,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                       disabled={Boolean(activeSprint)}
                       title={
                         activeSprint
-                          ? "Selesaikan sprint aktif terlebih dahulu"
+                          ? t.backlog.completeActiveSprintFirst
                           : "Mulai sprint ini"
                       }
                       className="flex items-center gap-1.5 px-3 py-1 bg-jira-blue hover:bg-jira-blue-hover text-white rounded text-xs font-semibold transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1143,7 +1143,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
 
               <div className="flex items-center gap-2 text-xs font-bold text-jira-subtle">
                 <Archive size={14} />
-                <span>Sprint Selesai ({closedSprints.length})</span>
+                <span>{t.backlog.completedSprints} ({closedSprints.length})</span>
               </div>
               <div className="text-slate-400">
                 {isClosedSprintsCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
@@ -1164,7 +1164,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                           <CheckCircle2 size={14} className="text-emerald-600" />
                           <span className="font-bold text-jira-text dark:text-jira-dark-text">{cs.name}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-slate-200 dark:bg-jira-dark-card text-slate-600 dark:text-slate-300">
-                            SELESAI
+                            {t.backlog.statusCompleted}
                           </span>
                         </div>
                         {cs.goal && (
@@ -1174,7 +1174,7 @@ export const BacklogPage: React.FC<BacklogPageProps> = ({
                         )}
                       </div>
                       <span className="text-xs font-mono font-bold text-slate-500">
-                        {items.length} work item
+                        {t.backlog.issuesCount(items.length)}
                       </span>
                     </div>
                   );

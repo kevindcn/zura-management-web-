@@ -93,7 +93,7 @@ export const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Nama sprint wajib diisi");
+      setError(t.backlog.sprintNameRequired);
       return;
     }
 

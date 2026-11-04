@@ -51,7 +51,7 @@ export const EditSprintModal: React.FC<EditSprintModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Nama sprint tidak boleh kosong");
+      setError(t.backlog.sprintNameNotEmpty);
       return;
     }
 

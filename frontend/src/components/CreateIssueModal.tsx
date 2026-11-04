@@ -81,7 +81,7 @@ export const CreateIssueModal: React.FC<CreateIssueModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError("Judul item tidak boleh kosong");
+      setError(t.backlog.itemTitleNotEmpty);
       return;
     }
 
