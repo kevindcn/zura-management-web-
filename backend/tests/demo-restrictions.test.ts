@@ -950,18 +950,16 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
     });
 
     it("serves static non-image uploads with Content-Disposition: attachment and nosniff", async () => {
-      const uploadRes = await request(app)
-        .post("/api/upload")
-        .set("Authorization", `Bearer ${regularToken}`)
-        .attach("file", Buffer.from("plain document content"), "document.txt");
-
-      expect(uploadRes.status).toBe(201);
-      const storedName = uploadRes.body.storedName;
-      if (storedName) {
-        uploadedFilesToCleanup.push(path.resolve(process.cwd(), "uploads", storedName));
+      const uploadsDir = path.resolve(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
       }
+      const testFileName = `test-static-doc-${Date.now()}.txt`;
+      const testFilePath = path.join(uploadsDir, testFileName);
+      fs.writeFileSync(testFilePath, "plain document content");
+      uploadedFilesToCleanup.push(testFilePath);
 
-      const getRes = await request(app).get(`/uploads/${storedName}`);
+      const getRes = await request(app).get(`/uploads/${testFileName}`);
       expect(getRes.status).toBe(200);
       expect(getRes.headers["x-content-type-options"]).toBe("nosniff");
       expect(getRes.headers["content-disposition"]).toContain("attachment");

@@ -1,29 +1,32 @@
 import { Router, Response } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { authenticateToken, AuthRequest } from "../middleware/auth.js";
 import { blockDemo } from "../middleware/blockDemo.js";
+import path from "path";
 
-const uploadsDir = path.resolve(process.cwd(), "uploads");
+const isTestEnv = process.env.NODE_ENV === "test";
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Konfigurasi Cloudinary hanya jika bukan di environment testing
+if (!isTestEnv) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
 }
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const baseName = path
-      .basename(file.originalname, ext)
-      .replace(/[^a-zA-Z0-9_-]/g, "_");
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${baseName}-${uniqueSuffix}${ext}`);
-  },
-});
+// Gunakan memoryStorage saat test, dan CloudinaryStorage saat production/development
+const storage = isTestEnv
+  ? multer.memoryStorage()
+  : new CloudinaryStorage({
+      cloudinary: cloudinary,
+      params: {
+        folder: "jira_clone_uploads",
+        resource_type: "auto",
+      } as any,
+    });
 
 const ALLOWED_EXTENSIONS = new Set([
   ".png",
@@ -115,12 +118,13 @@ router.post(
         return;
       }
 
-      const fileUrl = `/uploads/${req.file.filename}`;
+      const fileUrl = req.file.path ?? `memory://${req.file.originalname}`;
+      const storedName = req.file.filename ?? `memory-${req.file.originalname}`;
 
       res.status(201).json({
         url: fileUrl,
         filename: req.file.originalname,
-        storedName: req.file.filename,
+        storedName: storedName,
         size: req.file.size,
         mimetype: req.file.mimetype,
       });

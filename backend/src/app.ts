@@ -16,8 +16,12 @@ import { apiMutationRateLimiter } from "./middleware/rateLimiter.js";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch {
+  // Ignore in read-only environments (such as Vercel serverless)
 }
 
 export function createApp() {
@@ -116,3 +120,4 @@ export function createApp() {
 }
 
 export const app = createApp();
+export default app;
