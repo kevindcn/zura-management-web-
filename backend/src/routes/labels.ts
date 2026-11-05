@@ -30,12 +30,12 @@ export function getRandomLabelColor(seed: string): string {
 const createLabelSchema = z.object({
   name: z
     .string()
-    .min(1, "Nama label wajib diisi")
-    .max(50, "Nama label maksimal 50 karakter")
+    .min(1, "Label name is required")
+    .max(50, "Label name must be 50 characters or fewer")
     .transform((val) => val.trim()),
   color: z
     .string()
-    .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Format warna harus hex (contoh: #0C66E4)")
+    .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Color format must be hex (e.g. #0C66E4)")
     .optional(),
 }).strict();
 
@@ -54,7 +54,7 @@ router.get(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -91,7 +91,7 @@ router.post(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -136,7 +136,7 @@ router.delete(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -145,7 +145,7 @@ router.delete(
       });
 
       if (!label) {
-        res.status(404).json({ message: "Label tidak ditemukan" });
+        res.status(404).json({ message: "Label not found" });
         return;
       }
 
@@ -153,7 +153,7 @@ router.delete(
         where: { id: label.id },
       });
 
-      res.json({ message: "Label berhasil dihapus" });
+      res.json({ message: "Label deleted successfully" });
     } catch (err) {
       next(err);
     }

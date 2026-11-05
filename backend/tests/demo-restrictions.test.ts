@@ -659,7 +659,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .send({ name: blockedProjectName, key: blockedProjectKey });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks PATCH /api/projects/:key with 403 for demo token", async () => {
@@ -669,7 +669,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .send({ name: "Renamed by Demo" });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks DELETE /api/projects/:key/statuses/:statusId with 403 for demo token", async () => {
@@ -678,7 +678,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks DELETE /api/issues/:key with 403 for demo token", async () => {
@@ -687,7 +687,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks DELETE /api/comments/:id with 403 for demo token", async () => {
@@ -696,7 +696,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks DELETE /api/projects/:key/labels/:id with 403 for demo token", async () => {
@@ -705,7 +705,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks DELETE /api/projects/:key/sprints/:id with 403 for demo token", async () => {
@@ -714,7 +714,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks POST /api/projects/:key/sprints/:id/complete with 403 for demo token", async () => {
@@ -724,7 +724,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .send({});
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks PATCH /api/projects/:key/sprints/:id with state: 'CLOSED' with 403 for demo token", async () => {
@@ -734,7 +734,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .send({ state: "CLOSED" });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
 
     it("blocks POST /api/upload with 403 for demo token", async () => {
@@ -744,7 +744,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .attach("file", Buffer.from("blocked demo upload"), "sample.png");
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Fitur ini dinonaktifkan di akun demo.");
+      expect(res.body.message).toBe("This feature is disabled in the demo account.");
     });
   });
 
@@ -836,7 +836,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${regularToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toContain("berhasil dihapus");
+      expect(res.body.message).toContain("deleted successfully");
     });
 
     it("allows DELETE /api/comments/:id for regular token", async () => {
@@ -863,7 +863,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${regularToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toBe("Label berhasil dihapus");
+      expect(res.body.message).toBe("Label deleted successfully");
     });
 
     it("allows DELETE /api/projects/:key/sprints/:id for regular token", async () => {
@@ -872,7 +872,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .set("Authorization", `Bearer ${regularToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toContain("berhasil dihapus");
+      expect(res.body.message).toContain("deleted successfully");
     });
 
     it("allows POST /api/projects/:key/sprints/:id/complete for regular token", async () => {
@@ -920,7 +920,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .attach("file", Buffer.from("<h1>malicious</h1>"), "exploit.html");
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toMatch(/tidak diizinkan|tidak valid/i);
+      expect(res.body.message).toMatch(/not allowed|invalid/i);
     });
 
     it("rejects .svg file upload with 400 for regular user", async () => {
@@ -930,7 +930,7 @@ describe("Demo Account Restrictions & Security Integration Tests", () => {
         .attach("file", Buffer.from("<svg onload='alert(1)'></svg>"), "image.svg");
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toMatch(/tidak diizinkan|tidak valid/i);
+      expect(res.body.message).toMatch(/not allowed|invalid/i);
     });
 
     it("accepts .png file upload with 201 for regular user", async () => {

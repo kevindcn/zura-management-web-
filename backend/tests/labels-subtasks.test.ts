@@ -156,7 +156,7 @@ describe("Labels and Subtasks Integration Tests", () => {
         });
 
       expect(res.status).toBe(400);
-      expect(res.body.message).toContain("tidak boleh ada subtask bersarang");
+      expect(res.body.message).toContain("nested subtasks are not allowed");
     });
 
     it("should fetch children subtasks when fetching parent issue details", async () => {

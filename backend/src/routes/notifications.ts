@@ -69,7 +69,7 @@ router.patch("/notifications/:id/read", authenticateToken, async (req: any, res,
     });
 
     if (!notif || notif.userId !== userId) {
-      return res.status(404).json({ error: "Notifikasi tidak ditemukan" });
+      return res.status(404).json({ error: "Notification not found" });
     }
 
     const updated = await prisma.notification.update({
@@ -119,7 +119,7 @@ router.delete("/notifications/:id", authenticateToken, async (req: any, res, nex
     });
 
     if (!notif || notif.userId !== userId) {
-      return res.status(404).json({ error: "Notifikasi tidak ditemukan" });
+      return res.status(404).json({ error: "Notification not found" });
     }
 
     await prisma.notification.delete({

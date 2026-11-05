@@ -10,8 +10,8 @@ const createSavedViewSchema = z
   .object({
     name: z
       .string()
-      .min(1, "Nama filter wajib diisi")
-      .max(100, "Nama filter maksimal 100 karakter")
+      .min(1, "Filter name is required")
+      .max(100, "Filter name must be 100 characters or fewer")
       .transform((val) => val.trim()),
     query: z.string().max(255).optional().nullable(),
     type: z.string().max(50).optional().nullable(),
@@ -38,7 +38,7 @@ router.get(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -79,7 +79,7 @@ router.post(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -127,7 +127,7 @@ router.delete(
       });
 
       if (!savedView) {
-        res.status(404).json({ message: "Filter tersimpan tidak ditemukan" });
+        res.status(404).json({ message: "Saved filter not found" });
         return;
       }
 
@@ -138,7 +138,7 @@ router.delete(
 
       if (!isOwner && !isAdmin) {
         res.status(403).json({
-          message: "Anda tidak memiliki izin untuk menghapus filter ini",
+          message: "You do not have permission to delete this filter",
         });
         return;
       }
@@ -147,7 +147,7 @@ router.delete(
         where: { id },
       });
 
-      res.json({ message: "Filter tersimpan berhasil dihapus" });
+      res.json({ message: "Saved filter deleted successfully" });
     } catch (err) {
       next(err);
     }

@@ -71,12 +71,12 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   const mimetype = (file.mimetype || "").toLowerCase();
 
   if (!ALLOWED_EXTENSIONS.has(ext)) {
-    cb(new FileValidationError(`Ekstensi file '${ext}' tidak diizinkan. Tipe yang diperbolehkan: png, jpg, jpeg, gif, webp, pdf, txt, csv, zip`));
+    cb(new FileValidationError(`File extension '${ext}' is not allowed. Allowed types: png, jpg, jpeg, gif, webp, pdf, txt, csv, zip`));
     return;
   }
 
   if (!ALLOWED_MIME_TYPES.has(mimetype)) {
-    cb(new FileValidationError(`Tipe MIME '${mimetype}' tidak diizinkan`));
+    cb(new FileValidationError(`MIME type '${mimetype}' is not allowed`));
     return;
   }
 
@@ -109,12 +109,12 @@ router.post(
           res.status(400).json({ message: err.message });
           return;
         }
-        res.status(400).json({ message: err.message || "Tipe file tidak valid" });
+        res.status(400).json({ message: err.message || "Invalid file type" });
         return;
       }
 
       if (!req.file) {
-        res.status(400).json({ message: "Tidak ada file yang diunggah" });
+        res.status(400).json({ message: "No file uploaded" });
         return;
       }
 
