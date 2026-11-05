@@ -106,13 +106,13 @@ export function validateMemberMutation(params: MemberValidationParams): {
     if (isDelete) {
       return {
         allowed: false,
-        reason: "Pemilik project (lead) tidak dapat dikeluarkan dari project",
+        reason: "Project owner (lead) cannot be removed from the project",
       };
     }
     if (newRole && newRole.toUpperCase() !== ROLES.ADMIN) {
       return {
         allowed: false,
-        reason: "Pemilik project (lead) harus tetap memiliki peran ADMIN",
+        reason: "Project owner (lead) must retain the ADMIN role",
       };
     }
   }
@@ -129,8 +129,8 @@ export function validateMemberMutation(params: MemberValidationParams): {
         return {
           allowed: false,
           reason: isDelete
-            ? "Admin terakhir tidak dapat dikeluarkan dari project"
-            : "Admin terakhir tidak dapat diturunkan perannya",
+            ? "The last admin cannot be removed from the project"
+            : "The last admin cannot be demoted",
         };
       }
     }
@@ -145,7 +145,7 @@ export function validateMemberMutation(params: MemberValidationParams): {
     if (!isActorLead && actorRole !== ROLES.ADMIN) {
       return {
         allowed: false,
-        reason: "Hanya Admin atau Pemilik project yang berhak mengelola anggota",
+        reason: "Only Project Admins or Project Owners have permission to manage members",
       };
     }
   }

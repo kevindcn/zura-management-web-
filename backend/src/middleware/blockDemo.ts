@@ -8,7 +8,7 @@ import { isDemoUser } from "../lib/permissions.js";
  */
 export function blockDemo(req: AuthRequest, res: Response, next: NextFunction): void {
   if (isDemoUser(req.user)) {
-    res.status(403).json({ message: "Fitur ini dinonaktifkan di akun demo." });
+    res.status(403).json({ message: "This feature is disabled in the demo account." });
     return;
   }
   next();

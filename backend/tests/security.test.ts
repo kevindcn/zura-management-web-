@@ -158,7 +158,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${outsiderToken}`);
 
       expect(res.status).toBe(404);
-      expect(res.body.message).toContain("tidak ditemukan");
+      expect(res.body.message).toContain("not found");
     });
 
     it("does NOT auto-join non-member to project upon GET request", async () => {
@@ -266,7 +266,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${member2Token}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("hanya memiliki izin untuk menghapus work item yang Anda buat sendiri");
+      expect(res.body.message).toContain("You only have permission to delete work items that you created");
     });
 
     it("rejects Member 2 from deleting Member 1's comment with 403", async () => {
@@ -275,7 +275,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${member2Token}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("hanya memiliki izin untuk menghapus komentar milik Anda sendiri");
+      expect(res.body.message).toContain("You only have permission to delete your own comments");
     });
 
     it("allows Admin to delete any member's comment", async () => {
@@ -471,7 +471,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("Hanya pemilik project (lead)");
+      expect(res.body.message).toContain("Only the project owner (lead)");
     });
 
     it("allows Project Lead to successfully delete the project", async () => {
@@ -495,7 +495,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${leadToken}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.message).toContain("berhasil dihapus");
+      expect(res.body.message).toContain("deleted successfully");
 
       const check = await prisma.project.findUnique({
         where: { key: toDeleteProject.key },
@@ -621,7 +621,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk menghapus project");
+      expect(res.body.message).toContain("Demo accounts are not allowed to delete projects");
     });
 
     it("blocks demo user from adding member POST /api/projects/:key/members with 403", async () => {
@@ -639,7 +639,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .send({ userId: newCandidate.id, role: "MEMBER" });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk menambah anggota");
+      expect(res.body.message).toContain("Demo accounts are not allowed to add members");
     });
 
     it("blocks demo user from changing member role PATCH /api/projects/:key/members/:userId with 403", async () => {
@@ -649,7 +649,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .send({ role: "ADMIN" });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk mengubah peran anggota");
+      expect(res.body.message).toContain("Demo accounts are not allowed to change member roles");
     });
 
     it("blocks demo user from removing member DELETE /api/projects/:key/members/:userId with 403", async () => {
@@ -658,7 +658,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk mengeluarkan anggota");
+      expect(res.body.message).toContain("Demo accounts are not allowed to remove members");
     });
 
     it("blocks demo user from searching available users GET /api/projects/:key/available-users with 403", async () => {
@@ -667,7 +667,7 @@ describe("Backend Security and Permissions Integration Tests", () => {
         .set("Authorization", `Bearer ${demoToken}`);
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toContain("Akun demo tidak diizinkan untuk melihat daftar pengguna");
+      expect(res.body.message).toContain("Demo accounts are not allowed to view the user list");
     });
 
     it("allows demo user to perform normal project viewing operations (200)", async () => {

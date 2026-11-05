@@ -798,8 +798,8 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
                         <div className="flex items-center gap-1.5">
                           <Calendar size={13} />
                           <span>
-                            {new Date(reportData.sprint.startDate).toLocaleDateString()} —{" "}
-                            {reportData.sprint.endDate ? new Date(reportData.sprint.endDate).toLocaleDateString() : "Ongoing"}
+                            {new Date(reportData.sprint.startDate).toLocaleDateString("en-US")} —{" "}
+                            {reportData.sprint.endDate ? new Date(reportData.sprint.endDate).toLocaleDateString("en-US") : "Ongoing"}
                           </span>
                         </div>
                       )}

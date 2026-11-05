@@ -350,7 +350,7 @@ export const SummaryPage: React.FC<SummaryPageProps> = ({
       field: "status",
       newValue: item.status?.name,
       createdAt: item.updatedAt,
-      user: item.reporter || { name: "Pengguna", email: "" },
+      user: item.reporter || { name: "User", email: "" },
       issue: {
         id: item.id,
         key: item.key,

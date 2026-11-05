@@ -95,7 +95,7 @@ describe("validateMemberMutation() - Admin and Lead Locks", () => {
       isDelete: true,
     });
     expect(res.allowed).toBe(false);
-    expect(res.reason).toContain("Pemilik project (lead) tidak dapat dikeluarkan");
+    expect(res.reason).toContain("Project owner (lead) cannot be removed");
   });
 
   it("prevents demoting the project lead", () => {
@@ -109,7 +109,7 @@ describe("validateMemberMutation() - Admin and Lead Locks", () => {
       newRole: "MEMBER",
     });
     expect(res.allowed).toBe(false);
-    expect(res.reason).toContain("harus tetap memiliki peran ADMIN");
+    expect(res.reason).toContain("must retain the ADMIN role");
   });
 
   it("prevents removing the last remaining Admin", () => {
@@ -123,7 +123,7 @@ describe("validateMemberMutation() - Admin and Lead Locks", () => {
       isDelete: true,
     });
     expect(res.allowed).toBe(false);
-    expect(res.reason).toContain("Admin terakhir tidak dapat dikeluarkan");
+    expect(res.reason).toContain("The last admin cannot be removed");
   });
 
   it("prevents demoting the last remaining Admin", () => {
@@ -137,7 +137,7 @@ describe("validateMemberMutation() - Admin and Lead Locks", () => {
       newRole: "VIEWER",
     });
     expect(res.allowed).toBe(false);
-    expect(res.reason).toContain("Admin terakhir tidak dapat diturunkan");
+    expect(res.reason).toContain("The last admin cannot be demoted");
   });
 
   it("allows removing an Admin when another Admin exists", () => {

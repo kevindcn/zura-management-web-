@@ -21,7 +21,7 @@ const createProjectSchema = z.object({
 
 const updateProjectSchema = z
   .object({
-    name: z.string().min(2, "Nama project minimal 2 karakter").max(255).optional(),
+    name: z.string().min(2, "Project name must be at least 2 characters").max(255).optional(),
     description: z.string().max(10000).optional().nullable(),
   })
   .strict();
@@ -215,7 +215,7 @@ router.patch("/:key", authenticateToken, blockDemo, requirePermission("project:s
     });
 
     if (!existingProject) {
-      res.status(404).json({ message: "Project tidak ditemukan" });
+      res.status(404).json({ message: "Project not found" });
       return;
     }
 
@@ -247,7 +247,7 @@ router.patch("/:key", authenticateToken, blockDemo, requirePermission("project:s
 router.get("/:key/available-users", authenticateToken, requirePermission("member:manage"), async (req: AuthRequest, res: Response, next) => {
   try {
     if (isDemoUser(req.user)) {
-      res.status(403).json({ message: "Akun demo tidak diizinkan untuk melihat daftar pengguna" });
+      res.status(403).json({ message: "Demo accounts are not allowed to view the user list" });
       return;
     }
 
@@ -260,7 +260,7 @@ router.get("/:key/available-users", authenticateToken, requirePermission("member
     });
 
     if (!project) {
-      res.status(404).json({ message: "Project tidak ditemukan" });
+      res.status(404).json({ message: "Project not found" });
       return;
     }
 
@@ -302,7 +302,7 @@ router.post(
   async (req: AuthRequest, res: Response, next) => {
     try {
       if (isDemoUser(req.user)) {
-        res.status(403).json({ message: "Akun demo tidak diizinkan untuk menambah anggota ke project" });
+        res.status(403).json({ message: "Demo accounts are not allowed to add members to projects" });
         return;
       }
 
@@ -315,7 +315,7 @@ router.post(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -326,7 +326,7 @@ router.post(
         const actorMembership = project.members.find((m) => m.userId === req.user?.id);
         if (!isActorLead && actorMembership?.role !== "ADMIN") {
           res.status(403).json({
-            message: "Hanya Pemilik Project atau Admin yang memiliki hak istimewa untuk mengangkat peran ADMIN.",
+            message: "Only Project Owners or Admins have the privilege to grant the ADMIN role.",
             code: "INSUFFICIENT_PRIVILEGE",
           });
           return;
@@ -350,8 +350,8 @@ router.post(
       if (!targetUser) {
         res.status(404).json({
           message: email
-            ? `Pengguna dengan email '${email}' belum terdaftar. Untuk alasan keamanan, pengguna harus memiliki akun Zura terdaftar terlebih dahulu.`
-            : "Pengguna tidak ditemukan",
+            ? `User with email '${email}' is not registered. For security reasons, the user must have an existing Zura account first.`
+            : "User not found",
           code: "USER_NOT_REGISTERED",
         });
         return;
@@ -361,7 +361,7 @@ router.post(
       const existingMember = project.members.find((m) => m.userId === targetUser!.id);
       if (existingMember) {
         res.status(409).json({
-          message: `Pengguna '${targetUser!.name}' (${targetUser!.email}) sudah menjadi anggota di project ini dengan peran ${existingMember.role}.`,
+          message: `User '${targetUser!.name}' (${targetUser!.email}) is already a member of this project with role ${existingMember.role}.`,
           code: "ALREADY_MEMBER",
         });
         return;
@@ -384,8 +384,8 @@ router.post(
         recipientId: targetUser!.id,
         actorId: req.user!.id,
         type: "ASSIGNED",
-        title: "Akses Project Diberikan",
-        message: `${req.user?.name || "Admin"} telah menambahkan Anda ke project '${project.name}' (${project.key}) sebagai ${role}.`,
+        title: "Project Access Granted",
+        message: `${req.user?.name || "Admin"} added you to project '${project.name}' (${project.key}) as ${role}.`,
         projectId: project.id,
       });
 
@@ -405,7 +405,7 @@ router.patch(
   async (req: AuthRequest, res: Response, next) => {
     try {
       if (isDemoUser(req.user)) {
-        res.status(403).json({ message: "Akun demo tidak diizinkan untuk mengubah peran anggota" });
+        res.status(403).json({ message: "Demo accounts are not allowed to change member roles" });
         return;
       }
 
@@ -419,7 +419,7 @@ router.patch(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -430,7 +430,7 @@ router.patch(
         const actorMembership = project.members.find((m) => m.userId === req.user?.id);
         if (!isActorLead && actorMembership?.role !== "ADMIN") {
           res.status(403).json({
-            message: "Hanya Pemilik Project atau Admin yang memiliki hak istimewa untuk mengangkat peran ADMIN.",
+            message: "Only Project Owners or Admins have the privilege to grant the ADMIN role.",
             code: "INSUFFICIENT_PRIVILEGE",
           });
           return;
@@ -469,8 +469,8 @@ router.patch(
         recipientId: targetUserId,
         actorId: req.user!.id,
         type: "ASSIGNED",
-        title: "Peran Project Diperbarui",
-        message: `Peran Anda di project '${project.name}' (${project.key}) telah diubah menjadi ${newRole} oleh ${req.user?.name || "Admin"}.`,
+        title: "Project Role Updated",
+        message: `Your role in project '${project.name}' (${project.key}) was changed to ${newRole} by ${req.user?.name || "Admin"}.`,
         projectId: project.id,
       });
 
@@ -485,7 +485,7 @@ router.patch(
 router.delete("/:key/members/:userId", authenticateToken, requirePermission("member:manage"), async (req: AuthRequest, res: Response, next) => {
   try {
     if (isDemoUser(req.user)) {
-      res.status(403).json({ message: "Akun demo tidak diizinkan untuk mengeluarkan anggota dari project" });
+      res.status(403).json({ message: "Demo accounts are not allowed to remove members from projects" });
       return;
     }
 
@@ -498,7 +498,7 @@ router.delete("/:key/members/:userId", authenticateToken, requirePermission("mem
     });
 
     if (!project) {
-      res.status(404).json({ message: "Project tidak ditemukan" });
+      res.status(404).json({ message: "Project not found" });
       return;
     }
 
@@ -525,7 +525,7 @@ router.delete("/:key/members/:userId", authenticateToken, requirePermission("mem
       },
     });
 
-    res.json({ message: "Anggota berhasil dihapus dari project" });
+    res.json({ message: "Member removed from project successfully" });
   } catch (err) {
     next(err);
   }
@@ -535,7 +535,7 @@ router.delete("/:key/members/:userId", authenticateToken, requirePermission("mem
 router.delete("/:key", authenticateToken, requirePermission("project:delete"), async (req: AuthRequest, res: Response, next) => {
   try {
     if (isDemoUser(req.user)) {
-      res.status(403).json({ message: "Akun demo tidak diizinkan untuk menghapus project" });
+      res.status(403).json({ message: "Demo accounts are not allowed to delete projects" });
       return;
     }
 
@@ -543,25 +543,25 @@ router.delete("/:key", authenticateToken, requirePermission("project:delete"), a
     const project = await prisma.project.findUnique({ where: { key } });
 
     if (!project) {
-      res.status(404).json({ message: "Project tidak ditemukan" });
+      res.status(404).json({ message: "Project not found" });
       return;
     }
 
     // Explicit Lead Only Enforcement (Temuan 7 Roadmap 06)
     if (project.leadId !== req.user?.id) {
-      res.status(403).json({ message: "Hanya pemilik project (lead) yang berhak menghapus project" });
+      res.status(403).json({ message: "Only the project owner (lead) has permission to delete the project" });
       return;
     }
 
     await prisma.project.delete({ where: { id: project.id } });
-    res.json({ message: "Project berhasil dihapus" });
+    res.json({ message: "Project deleted successfully" });
   } catch (err) {
     next(err);
   }
 });
 
 const createStatusSchema = z.object({
-  name: z.string().trim().min(1, "Nama tahapan/kolom status wajib diisi").max(50, "Nama maksimal 50 karakter"),
+  name: z.string().trim().min(1, "Status column name is required").max(50, "Name must be 50 characters or fewer"),
   category: z.enum(["TO_DO", "IN_PROGRESS", "DONE"]).default("IN_PROGRESS"),
   position: z.number().optional(),
 });
@@ -582,7 +582,7 @@ router.post(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -591,7 +591,7 @@ router.post(
         (s) => s.name.toLowerCase() === name.toLowerCase()
       );
       if (duplicate) {
-        res.status(409).json({ message: `Kolom dengan nama '${name}' sudah ada di project ini` });
+        res.status(409).json({ message: `A column named '${name}' already exists in this project` });
         return;
       }
 
@@ -643,13 +643,13 @@ router.patch(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
       const existing = project.statuses.find((s) => s.id === statusId);
       if (!existing) {
-        res.status(404).json({ message: "Kolom status tidak ditemukan" });
+        res.status(404).json({ message: "Status column not found" });
         return;
       }
 
@@ -658,7 +658,7 @@ router.patch(
           (s) => s.id !== statusId && s.name.toLowerCase() === name.toLowerCase()
         );
         if (duplicate) {
-          res.status(409).json({ message: `Kolom dengan nama '${name}' sudah ada di project ini` });
+          res.status(409).json({ message: `A column named '${name}' already exists in this project` });
           return;
         }
       }
@@ -696,18 +696,18 @@ router.delete(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
       const status = project.statuses.find((s) => s.id === statusId);
       if (!status) {
-        res.status(404).json({ message: "Kolom status tidak ditemukan" });
+        res.status(404).json({ message: "Status column not found" });
         return;
       }
 
       if (project.statuses.length <= 1) {
-        res.status(400).json({ message: "Papan minimal harus memiliki 1 kolom status" });
+        res.status(400).json({ message: "The board must have at least 1 status column" });
         return;
       }
 
@@ -717,13 +717,13 @@ router.delete(
 
       if (issuesCount > 0) {
         res.status(400).json({
-          message: `Kolom '${status.name}' masih memiliki ${issuesCount} kartu issue. Pindahkan kartu sebelum menghapus kolom.`,
+          message: `Column '${status.name}' still has ${issuesCount} work items. Move them before deleting this column.`,
         });
         return;
       }
 
       await prisma.status.delete({ where: { id: statusId } });
-      res.json({ message: "Kolom status berhasil dihapus", statusId });
+      res.json({ message: "Status column deleted successfully", statusId });
     } catch (err) {
       next(err);
     }
@@ -750,7 +750,7 @@ router.put(
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 

@@ -213,7 +213,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                       isMenuOpen ? "bg-slate-200 dark:bg-jira-dark-card text-slate-800 dark:text-jira-dark-text" : ""
                     }`
               }`}
-              title={isViewer ? "Aksi kolom dinonaktifkan untuk role Viewer" : "Column options"}
+              title={isViewer ? t.board.columnActionsDisabledViewer : t.board.columnOptions}
             >
               <MoreHorizontal size={14} />
             </button>
@@ -308,7 +308,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           setIsSettingLimit(true);
                         }}
                         className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-jira-dark-hover disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-not-allowed flex items-center justify-between text-slate-700 dark:text-jira-dark-text transition cursor-pointer"
-                        title={isViewer ? "Aksi dinonaktifkan untuk role Viewer" : undefined}
+                        title={isViewer ? t.board.actionDisabledViewer : undefined}
                       >
                         <span>Set column limit</span>
                       </button>
@@ -325,7 +325,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           onMoveColumnLeft?.();
                         }}
                         className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-jira-dark-hover disabled:opacity-35 disabled:hover:bg-transparent flex items-center justify-between text-slate-700 dark:text-jira-dark-text transition cursor-pointer disabled:cursor-not-allowed"
-                        title={isViewer ? "Aksi dinonaktifkan untuk role Viewer" : undefined}
+                        title={isViewer ? t.board.actionDisabledViewer : undefined}
                       >
                         <span>Move column left</span>
                         <ArrowLeft size={13} className="text-slate-400" />
@@ -341,7 +341,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                           onMoveColumnRight?.();
                         }}
                         className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-jira-dark-hover disabled:opacity-35 disabled:hover:bg-transparent flex items-center justify-between text-slate-700 dark:text-jira-dark-text transition cursor-pointer disabled:cursor-not-allowed"
-                        title={isViewer ? "Aksi dinonaktifkan untuk role Viewer" : undefined}
+                        title={isViewer ? t.board.actionDisabledViewer : undefined}
                       >
                         <span>Move column right</span>
                         <ArrowRight size={13} className="text-slate-400" />
@@ -361,7 +361,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                             className="w-full text-left px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 disabled:opacity-35 disabled:hover:bg-transparent disabled:text-slate-400 flex items-center justify-between transition cursor-pointer disabled:cursor-not-allowed"
                             title={
                               isViewer
-                                ? "Aksi dinonaktifkan untuk role Viewer"
+                                ? t.board.actionDisabledViewer
                                 : issues.length > 0
                                 ? "Move cards out first to delete column"
                                 : "Delete status column"

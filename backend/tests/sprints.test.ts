@@ -152,7 +152,7 @@ describe("Sprint & Backlog Integration Tests", () => {
       .send({ state: "ACTIVE" });
 
     expect(startRes.status).toBe(400);
-    expect(startRes.body.message).toContain("sudah memiliki sprint aktif");
+    expect(startRes.body.message).toContain("already has an active sprint");
   });
 
   it("allows admin to complete a sprint (state -> CLOSED)", async () => {
@@ -171,7 +171,7 @@ describe("Sprint & Backlog Integration Tests", () => {
       .set("Authorization", `Bearer ${leadToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.message).toContain("berhasil dihapus");
+    expect(res.body.message).toContain("deleted successfully");
 
     const check = await prisma.sprint.findUnique({ where: { id: sprint2.id } });
     expect(check).toBeNull();

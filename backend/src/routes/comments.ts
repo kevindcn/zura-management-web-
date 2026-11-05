@@ -141,8 +141,8 @@ router.post(
             recipientId: rId,
             actorId: userId,
             type: "COMMENT",
-            title: "Komentar Baru",
-            message: `menambahkan komentar pada ${key}: "${snippet}"`,
+            title: "New Comment",
+            message: `added a comment on ${key}: "${snippet}"`,
             issueKey: key,
             projectId: issue.projectId,
           })

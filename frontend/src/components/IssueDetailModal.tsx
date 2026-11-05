@@ -65,7 +65,7 @@ const MemoizedCommentItem = React.memo<MemoizedCommentProps>(({ comment }) => {
   const formattedDate = useMemo(() => {
     try {
       const d = new Date(comment.createdAt);
-      return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
+      return `${d.toLocaleDateString("en-US")} ${d.toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
       })}`;
@@ -763,7 +763,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                                 : `updated ${act.field || "details"}`}
                             </span>
                             <span className="text-[10px] text-jira-subtle dark:text-jira-dark-subtle ml-2">
-                              {new Date(act.createdAt).toLocaleTimeString([], {
+                              {new Date(act.createdAt).toLocaleTimeString("en-US", {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}
@@ -900,10 +900,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               {/* Dates */}
               <div className="pt-2 border-t border-slate-200 dark:border-jira-dark-border text-[11px] text-jira-subtle dark:text-jira-dark-subtle space-y-1">
                 <div>
-                  Created: {new Date(issue.createdAt).toLocaleDateString()}
+                  Created: {new Date(issue.createdAt).toLocaleDateString("en-US")}
                 </div>
                 <div>
-                  Updated: {new Date(issue.updatedAt).toLocaleDateString()}
+                  Updated: {new Date(issue.updatedAt).toLocaleDateString("en-US")}
                 </div>
               </div>
             </div>

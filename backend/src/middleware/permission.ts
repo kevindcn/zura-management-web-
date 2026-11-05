@@ -47,7 +47,7 @@ export function requirePermission(permission: Permission) {
             select: { id: true },
           });
           if (!project) {
-            res.status(404).json({ message: "Project tidak ditemukan" });
+            res.status(404).json({ message: "Project not found" });
             return;
           }
           projectId = project.id;
@@ -59,7 +59,7 @@ export function requirePermission(permission: Permission) {
           });
 
           if (!issueData) {
-            res.status(404).json({ message: "Work item tidak ditemukan" });
+            res.status(404).json({ message: "Work item not found" });
             return;
           }
           projectId = issueData.projectId;
@@ -77,14 +77,14 @@ export function requirePermission(permission: Permission) {
         });
 
         if (!commentData) {
-          res.status(404).json({ message: "Komentar tidak ditemukan" });
+          res.status(404).json({ message: "Comment not found" });
           return;
         }
         projectId = commentData.issue.projectId;
       }
 
       if (!projectId) {
-        res.status(400).json({ message: "Konteks project tidak ditemukan" });
+        res.status(400).json({ message: "Project context not found" });
         return;
       }
 
@@ -102,7 +102,7 @@ export function requirePermission(permission: Permission) {
       });
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -111,7 +111,7 @@ export function requirePermission(permission: Permission) {
 
       // Non-member check -> return 404 so existence is NOT leaked!
       if (!membership && !isLead) {
-        res.status(404).json({ message: "Resource tidak ditemukan" });
+        res.status(404).json({ message: "Resource not found" });
         return;
       }
 
@@ -135,7 +135,7 @@ export function requirePermission(permission: Permission) {
           return next();
         }
         res.status(403).json({
-          message: "Anda hanya memiliki izin untuk menghapus work item yang Anda buat sendiri",
+          message: "You only have permission to delete work items that you created",
         });
         return;
       }
@@ -149,14 +149,14 @@ export function requirePermission(permission: Permission) {
           return next();
         }
         res.status(403).json({
-          message: "Anda hanya memiliki izin untuk menghapus komentar milik Anda sendiri",
+          message: "You only have permission to delete your own comments",
         });
         return;
       }
 
       if (permission === "project:delete") {
         if (!isLead) {
-          res.status(403).json({ message: "Hanya pemilik project (lead) yang dapat menghapus project" });
+          res.status(403).json({ message: "Only the project owner (lead) can delete the project" });
           return;
         }
         return next();
@@ -165,7 +165,7 @@ export function requirePermission(permission: Permission) {
       // 5. Standard role permission check
       if (!can(userRole, permission)) {
         res.status(403).json({
-          message: `Peran Anda (${userRole}) tidak memiliki izin '${permission}' untuk aksi ini`,
+          message: `Your role (${userRole}) does not have '${permission}' permission for this action`,
         });
         return;
       }

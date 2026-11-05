@@ -57,7 +57,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !key.trim()) {
-      setError("Nama project dan key wajib diisi");
+      setError(t.projects.nameRequired);
       return;
     }
 
@@ -74,7 +74,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
       setDescription("");
       onClose();
     } catch (err: any) {
-      setError(getErrorMessage(err, "Gagal membuat project"));
+      setError(getErrorMessage(err, t.projects.createFailed));
     } finally {
       setLoading(false);
     }
@@ -108,44 +108,44 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
-              Nama Project <span className="text-red-500">*</span>
+              {t.projects.projectName} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               autoFocus
               value={name}
               onChange={handleNameChange}
-              placeholder="Contoh: Aplikasi Layanan Pelanggan"
+              placeholder={t.projects.namePlaceholder}
               className="w-full px-3 py-2 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
-              Key Project (Awalan Work Item) <span className="text-red-500">*</span>
+              {t.projects.projectKey} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               maxLength={6}
               value={key}
               onChange={(e) => setKey(e.target.value.toUpperCase())}
-              placeholder="Contoh: APP"
+              placeholder={t.projects.keyPlaceholder}
               className="w-full px-3 py-2 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text font-mono uppercase outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue"
             />
             <p className="text-[11px] text-jira-subtle dark:text-jira-dark-subtle mt-1">
-              2-6 huruf/angka kapital. Work item akan bernomor {key || "KEY"}-1, {key || "KEY"}-2.
+              {t.projects.keyHelp(key)}
             </p>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-jira-subtle dark:text-jira-dark-subtle uppercase mb-1">
-              Deskripsi ({t.common.optional})
+              {t.projects.description} ({t.common.optional})
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tujuan, ruang lingkup, atau pedoman project..."
+              placeholder={t.projects.descPlaceholder}
               className="w-full px-3 py-2 bg-white dark:bg-jira-dark-surface border border-jira-border dark:border-jira-dark-border rounded-md text-xs text-jira-text dark:text-jira-dark-text outline-none focus:border-jira-blue focus:ring-1 focus:ring-jira-blue resize-y"
             />
           </div>

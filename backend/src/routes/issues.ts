@@ -364,8 +364,8 @@ router.post(
           recipientId: newIssue.assigneeId,
           actorId: userId,
           type: "ASSIGNED",
-          title: "Ditugaskan ke Work Item",
-          message: `menugaskan ${newIssue.key} '${newIssue.title}' kepada Anda`,
+          title: "Assigned to Work Item",
+          message: `assigned ${newIssue.key} '${newIssue.title}' to you`,
           issueKey: newIssue.key,
           projectId: newIssue.projectId,
         });
@@ -468,7 +468,7 @@ router.post(
       });
 
       if (!issue) {
-        res.status(404).json({ message: "Work item tidak ditemukan" });
+        res.status(404).json({ message: "Work item not found" });
         return;
       }
 
@@ -505,8 +505,8 @@ router.post(
         isWatching,
         watcherCount,
         message: isWatching
-          ? `Anda sekarang mengikuti ${key}`
-          : `Anda berhenti mengikuti ${key}`,
+          ? `You are now watching ${key}`
+          : `You stopped watching ${key}`,
       });
     } catch (err) {
       next(err);
@@ -538,7 +538,7 @@ router.get(
       });
 
       if (!issue) {
-        res.status(404).json({ message: "Work item tidak ditemukan" });
+        res.status(404).json({ message: "Work item not found" });
         return;
       }
 
@@ -823,8 +823,8 @@ router.patch(
           recipientId: body.assigneeId,
           actorId: userId,
           type: "ASSIGNED",
-          title: "Ditugaskan ke Work Item",
-          message: `menugaskan ${updatedIssue.key} '${updatedIssue.title}' kepada Anda`,
+          title: "Assigned to Work Item",
+          message: `assigned ${updatedIssue.key} '${updatedIssue.title}' to you`,
           issueKey: updatedIssue.key,
           projectId: updatedIssue.projectId,
         });
@@ -854,8 +854,8 @@ router.patch(
               recipientId: rId,
               actorId: userId,
               type: "STATUS_CHANGED",
-              title: "Status Diperbarui",
-              message: `memindahkan ${updatedIssue.key} ke ${updatedIssue.status.name}`,
+              title: "Status Updated",
+              message: `moved ${updatedIssue.key} to ${updatedIssue.status.name}`,
               issueKey: updatedIssue.key,
               projectId: updatedIssue.projectId,
             })
@@ -961,8 +961,8 @@ router.patch(
               recipientId: rId,
               actorId: userId,
               type: "STATUS_CHANGED",
-              title: "Status Diperbarui",
-              message: `memindahkan ${updatedIssue.key} ke ${updatedIssue.status.name}`,
+              title: "Status Updated",
+              message: `moved ${updatedIssue.key} to ${updatedIssue.status.name}`,
               issueKey: updatedIssue.key,
               projectId: updatedIssue.projectId,
             })
@@ -1031,14 +1031,14 @@ router.post(
       });
 
       if (!parentIssue) {
-        res.status(404).json({ message: "Parent work item tidak ditemukan" });
+        res.status(404).json({ message: "Parent work item not found" });
         return;
       }
 
       // Agile Guard: A subtask cannot have children (no nested subtasks)
       if (parentIssue.type === "SUBTASK") {
         res.status(400).json({
-          message: "Subtask tidak dapat memiliki subtask (tidak boleh ada subtask bersarang)",
+          message: "Subtasks cannot have subtasks (nested subtasks are not allowed)",
         });
         return;
       }

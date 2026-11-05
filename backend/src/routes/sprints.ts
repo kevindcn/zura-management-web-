@@ -12,8 +12,8 @@ import { isEligibleForReporting, recordIssueEvent } from "../lib/issueEvents.js"
 const router = Router();
 
 const createSprintSchema = z.object({
-  name: z.string().min(1, "Nama sprint wajib diisi").max(100, "Nama sprint maksimal 100 karakter"),
-  goal: z.string().max(1000, "Tujuan sprint maksimal 1.000 karakter").optional().nullable(),
+  name: z.string().min(1, "Sprint name is required").max(100, "Sprint name must be 100 characters or fewer"),
+  goal: z.string().max(1000, "Sprint goal must be 1,000 characters or fewer").optional().nullable(),
   startDate: z.string().optional().nullable(),
   endDate: z.string().optional().nullable(),
 }).strict();
@@ -28,7 +28,7 @@ const updateSprintSchema = z.object({
 }).strict();
 
 const moveIssuesSchema = z.object({
-  issueIds: z.array(z.string()).min(1, "Minimal 1 work item"),
+  issueIds: z.array(z.string()).min(1, "At least 1 work item is required"),
   targetSprintId: z.string().nullable(),
 }).strict();
 
@@ -72,7 +72,7 @@ async function executeCompleteSprint(
     });
 
     if (!sprint) {
-      throw new Error("Sprint tidak ditemukan pada project ini");
+      throw new Error("Sprint not found in this project");
     }
 
     if (sprint.state === "CLOSED") {
@@ -86,7 +86,7 @@ async function executeCompleteSprint(
         where: { id: targetSprintId, projectId },
       });
       if (!verifiedTargetSprint) {
-        throw new Error("Sprint tujuan rollover tidak ditemukan pada project ini");
+        throw new Error("Rollover target sprint not found in this project");
       }
     }
 
@@ -240,7 +240,7 @@ router.get(
       const project = await findProject(req.params.key);
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -281,7 +281,7 @@ router.post(
       const body = createSprintSchema.parse(req.body);
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -320,13 +320,13 @@ router.post(
       const { targetSprintId } = completeSprintSchema.parse(req.body);
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
       const closedSprint = await executeCompleteSprint(project.id, sprintId, targetSprintId);
       res.json({
-        message: `Sprint '${closedSprint.name}' berhasil diselesaikan`,
+        message: `Sprint '${closedSprint.name}' completed successfully`,
         sprint: closedSprint,
       });
     } catch (err) {
@@ -347,12 +347,12 @@ router.patch(
       const body = updateSprintSchema.parse(req.body);
 
       if (body.state === "CLOSED" && isDemoUser(req.user)) {
-        res.status(403).json({ message: "Fitur ini dinonaktifkan di akun demo." });
+        res.status(403).json({ message: "This feature is disabled in the demo account." });
         return;
       }
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -361,7 +361,7 @@ router.patch(
       });
 
       if (!existingSprint) {
-        res.status(404).json({ message: "Sprint tidak ditemukan pada project ini" });
+        res.status(404).json({ message: "Sprint not found in this project" });
         return;
       }
 
@@ -384,7 +384,7 @@ router.patch(
 
         if (activeSprint) {
           res.status(400).json({
-            message: `Project ini sudah memiliki sprint aktif ('${activeSprint.name}'). Selesaikan sprint aktif terlebih dahulu.`,
+            message: `This project already has an active sprint ('${activeSprint.name}'). Complete the active sprint first.`,
           });
           return;
         }
@@ -462,8 +462,8 @@ router.patch(
               recipientId: m.userId,
               actorId: req.user!.id,
               type: "SPRINT",
-              title: "Sprint Dimulai",
-              message: `memulai sprint '${updatedSprint.name}' pada ${project.key}`,
+              title: "Sprint Started",
+              message: `started sprint '${updatedSprint.name}' in ${project.key}`,
               projectId: project.id,
             })
           )
@@ -489,7 +489,7 @@ router.delete(
       const sprintId = req.params.id;
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -498,7 +498,7 @@ router.delete(
       });
 
       if (!sprint) {
-        res.status(404).json({ message: "Sprint tidak ditemukan" });
+        res.status(404).json({ message: "Sprint not found" });
         return;
       }
 
@@ -506,7 +506,7 @@ router.delete(
         where: { id: sprintId },
       });
 
-      res.json({ message: "Sprint berhasil dihapus dan item dikembalikan ke backlog" });
+      res.json({ message: "Sprint deleted successfully and items returned to backlog" });
     } catch (err) {
       next(err);
     }
@@ -524,7 +524,7 @@ router.post(
       const { issueIds, targetSprintId } = moveIssuesSchema.parse(req.body);
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -534,7 +534,7 @@ router.post(
           where: { id: targetSprintId, projectId: project.id },
         });
         if (!targetSprint) {
-          res.status(404).json({ message: "Sprint tujuan tidak ditemukan pada project ini" });
+          res.status(404).json({ message: "Target sprint not found in this project" });
           return;
         }
       }
@@ -581,7 +581,7 @@ router.post(
       }
 
       res.json({
-        message: `${result.count} work item berhasil dipindahkan`,
+        message: `${result.count} work item${result.count === 1 ? "" : "s"} moved successfully`,
         count: result.count,
       });
     } catch (err) {
@@ -606,7 +606,7 @@ router.get(
       const metric = req.query.metric === "issues" ? "issues" : "points";
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -621,7 +621,7 @@ router.get(
       });
 
       if (!sprint) {
-        res.status(404).json({ message: "Sprint tidak ditemukan pada project ini" });
+        res.status(404).json({ message: "Sprint not found in this project" });
         return;
       }
 
@@ -684,7 +684,7 @@ router.get(
     try {
       const project = await findProject(req.params.key);
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -704,7 +704,7 @@ router.get(
           averageVelocity: 0,
           recommendedCapacity: null,
           insufficientData: true,
-          emptyMessage: "Belum ada sprint yang selesai. Velocity muncul setelah sprint pertama ditutup.",
+          emptyMessage: "No sprints completed yet. Velocity appears after the first sprint is closed.",
         });
         return;
       }
@@ -739,7 +739,7 @@ router.get(
         recommendedCapacity = Math.round(last3Completed / 3);
       } else {
         insufficientData = true;
-        recommendationMessage = "Data belum cukup untuk rekomendasi kapasitas.";
+        recommendationMessage = "Insufficient data for capacity recommendation.";
       }
 
       res.json({
@@ -766,7 +766,7 @@ router.get(
       const sprintId = req.params.id;
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -794,7 +794,7 @@ router.get(
       });
 
       if (!sprint) {
-        res.status(404).json({ message: "Sprint tidak ditemukan pada project ini" });
+        res.status(404).json({ message: "Sprint not found in this project" });
         return;
       }
 
@@ -1094,7 +1094,7 @@ router.patch(
       const body = retroNotesSchema.parse(req.body);
 
       if (!project) {
-        res.status(404).json({ message: "Project tidak ditemukan" });
+        res.status(404).json({ message: "Project not found" });
         return;
       }
 
@@ -1103,7 +1103,7 @@ router.patch(
       });
 
       if (!sprint) {
-        res.status(404).json({ message: "Sprint tidak ditemukan pada project ini" });
+        res.status(404).json({ message: "Sprint not found in this project" });
         return;
       }
 
@@ -1121,7 +1121,7 @@ router.patch(
       });
 
       res.json({
-        message: "Catatan retrospektif berhasil disimpan",
+        message: "Retrospective notes saved successfully",
         retroNotes: updatedSprint.retroNotes,
       });
     } catch (err) {

@@ -207,7 +207,7 @@ export const ListPage: React.FC<ListPageProps> = ({
           comparison = a.number - b.number;
           break;
         case "title":
-          comparison = a.title.localeCompare(b.title, "id");
+          comparison = a.title.localeCompare(b.title, "en");
           break;
         case "status": {
           const statusA = a.status?.position || 0;
@@ -224,7 +224,7 @@ export const ListPage: React.FC<ListPageProps> = ({
         case "assignee": {
           const nameA = a.assignee?.name || "zzz";
           const nameB = b.assignee?.name || "zzz";
-          comparison = nameA.localeCompare(nameB, "id");
+          comparison = nameA.localeCompare(nameB, "en");
           break;
         }
         case "dueDate": {

@@ -7,7 +7,7 @@ interface RateLimitOptions {
 }
 
 export function createRateLimiter(options: RateLimitOptions) {
-  const { windowMs, max, message = "Terlalu banyak permintaan. Silakan coba lagi beberapa saat lagi." } = options;
+  const { windowMs, max, message = "Too many requests. Please try again later." } = options;
   const ipRequests = new Map<string, number[]>();
 
   // Periodically clean up entries older than windowMs
@@ -53,14 +53,14 @@ export function createRateLimiter(options: RateLimitOptions) {
 export const authRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 10,
-  message: "Terlalu banyak percobaan autentikasi. Silakan tunggu 1 menit sebelum mencoba lagi.",
+  message: "Too many authentication attempts. Please wait 1 minute before trying again.",
 });
 
 // 30 requests per minute for sensitive member and role actions
 export const memberActionRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 30,
-  message: "Terlalu banyak permintaan perubahan anggota. Silakan tunggu 1 menit sebelum mencoba lagi.",
+  message: "Too many member modification requests. Please wait 1 minute before trying again.",
 });
 
 const mutatingMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
@@ -69,7 +69,7 @@ const mutatingMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const baseApiMutationLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 120,
-  message: "Terlalu banyak permintaan perubahan data. Silakan tunggu 1 menit sebelum mencoba lagi.",
+  message: "Too many data modification requests. Please wait 1 minute before trying again.",
 });
 
 export const apiMutationRateLimiter = (req: Request, res: Response, next: NextFunction): void => {
